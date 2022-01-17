@@ -3204,6 +3204,11 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
     return;
   }
 
+  if (display_attributes_.fsc_panel) {
+    DLOGW("fsd panel, no need to update buffers fds");
+    return;
+  }
+
   // Copy the acquire fence from clients layers  to HWLayers
   uint32_t hw_layers_count = UINT32(disp_layer_stack_->info.hw_layers.size());
 
