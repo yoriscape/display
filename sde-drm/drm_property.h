@@ -240,6 +240,8 @@ enum struct DRMProperty {
   SPR_INIT_CFG_V2,
   SPR_UDC_CFG_V2,
   EPT,
+  PREFILL_SIZE,
+  PREFILL_TIME,
 
   // Insert above
   MAX

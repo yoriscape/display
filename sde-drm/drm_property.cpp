@@ -242,6 +242,8 @@ DRMProperty DRMPropertyManager::GetPropertyEnum(const std::string &name) const {
   if (name == "SDE_SSPP_UCSC_GC_V1") { return DRMProperty::SDE_SSPP_UCSC_GC_V1; }
   if (name == "SDE_SSPP_UCSC_ALPHA_DITHER_V1") { return DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1; }
   if (name == "EPT") { return DRMProperty::EPT; }
+  if (name == "prefill_size") { return DRMProperty::PREFILL_SIZE; }
+  if (name == "prefill_time") { return DRMProperty::PREFILL_TIME; }
 
   return DRMProperty::INVALID;
 }
