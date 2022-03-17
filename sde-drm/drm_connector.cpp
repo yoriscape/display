@@ -719,7 +719,7 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
         info->backlight_type = string(line, backlight_type.length());
       }
     } else if (line.find(fsc_panel) != string::npos) {
-      info->fsc_panel = std::stoi(string(line, fsc_panel.length()));
+      info->fsc_panel = (string(line, fsc_panel.length()) == "true");
     } else if (line.find(num_fsc_fields) != string::npos) {
       info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
     }
