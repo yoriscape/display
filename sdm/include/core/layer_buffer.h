@@ -99,6 +99,7 @@ enum LayerBufferFormat {
                              //!< interleaved in RGBA order.
   kFormatA8,                 //!< 8-bits Alpha format.
   kFormatC8Ubwc,             // UBWC aligned C8 format. Y-plane only, No UV-Plane.
+  kFormatC8Fsc,              // C8 format. Y-plane only, No UV-Plane.
 
   /* All YUV-Planar formats, Any new format will be added towards end of this group to maintain
      backward compatibility.
