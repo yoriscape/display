@@ -1610,7 +1610,9 @@ HWC3::Error HWCDisplay::PostPrepareLayerStack(uint32_t *out_num_types, uint32_t 
 
   validate_done_ = true;
 
-  return ((*out_num_types > 0) ? HWC3::Error::HasChanges : HWC3::Error::None);
+  return (((*out_num_types > 0) || (has_client_composition_ && *out_num_requests > 0))
+              ? HWC3::Error::HasChanges
+              : HWC3::Error::None);
 }
 
 HWC3::Error HWCDisplay::AcceptDisplayChanges() {
