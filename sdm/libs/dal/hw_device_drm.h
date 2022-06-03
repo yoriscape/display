@@ -377,6 +377,7 @@ class HWDeviceDRM : public HWInterface {
 
  private:
   void GetCWBCapabilities();
+  void UpdateDisplayAttributesForFSC(HWDisplayAttributes *display_attributes);
 
   std::string interface_str_ = "DSI";
   bool resolution_switch_enabled_ = false;
