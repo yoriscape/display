@@ -607,6 +607,8 @@ struct LayerStack {
   LayerStackRequestFlags request_flags;  //!< request flags on this LayerStack by SDM.
 
   uint32_t force_refresh_rate = 0;
+
+  uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 };
 
 }  // namespace sdm

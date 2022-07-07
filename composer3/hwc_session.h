@@ -362,6 +362,7 @@ class HWCSession : HWCUEventListener,
                               shared_ptr<Fence> *out_retire_fence, uint32_t *out_num_types,
                               uint32_t *out_num_requests, bool *needs_commit);
   HWC3::Error TryDrawMethod(Display display, DrawMethod drawMethod);
+  HWC3::Error SetExpectedPresentTime(Display display, uint64_t expectedPresentTime);
 
   static Locker locker_[HWCCallbacks::kNumDisplays];
   static Locker power_state_[HWCCallbacks::kNumDisplays];

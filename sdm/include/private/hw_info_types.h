@@ -980,6 +980,7 @@ struct HWLayersInfo {
   bool iwe_enabled = false;
   HWDNSCInfo dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
+  uint64_t expected_present_time = 0;
 };
 
 struct DispLayerStack {

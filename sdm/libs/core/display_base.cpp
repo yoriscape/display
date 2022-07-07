@@ -3209,6 +3209,8 @@ void DisplayBase::CommitLayerParams(LayerStack *layer_stack) {
     disp_layer_stack_->info.elapse_timestamp = layer_stack->elapse_timestamp;
   }
 
+  disp_layer_stack_->info.expected_present_time = layer_stack->expected_present_time;
+
   return;
 }
 

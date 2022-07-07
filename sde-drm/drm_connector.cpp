@@ -1441,6 +1441,17 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
                   connector_cache_state);
     } break;
 
+    case DRMOps::CONNECTOR_SET_EPT: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::EPT)) {
+        return;
+      }
+
+      uint64_t expected_present_time = va_arg(args, uint64_t);
+      drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::EPT),
+                               expected_present_time);
+      DRM_LOGD("Connector %d: Setting ePT = %" PRId64, obj_id, expected_present_time);
+    } break;
+
     default:
       DRM_LOGE("Invalid opcode %d to set on connector %d", code, obj_id);
       break;
