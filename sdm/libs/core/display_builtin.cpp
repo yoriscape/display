@@ -1092,6 +1092,11 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
     return error;
   }
 
+  if (secure_event_ == kTUITransitionEnd && state == kStateOff) {
+    SetPanelBrightness(cached_brightness_);
+    pending_brightness_ = false;
+  }
+
   if (hw_panel_info_.mode != panel_mode) {
     UpdateDisplayModeParams();
   }
