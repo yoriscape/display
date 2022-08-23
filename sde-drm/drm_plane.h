@@ -105,6 +105,7 @@ class DRMPlane {
 #endif
   bool SetPrefillSize(drmModeAtomicReq *req, uint32_t prefill_size);
   bool SetPrefillTime(drmModeAtomicReq *req, uint32_t prefill_time);
+  bool SetSysCacheType(drmModeAtomicReq *req, uint32_t prefill_time);
 
  private:
   typedef std::map<DRMProperty, std::tuple<uint64_t, drmModePropertyRes *>> PropertyMap;

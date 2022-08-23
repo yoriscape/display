@@ -127,38 +127,39 @@
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 
-using std::string;
-using std::to_string;
-using std::fstream;
-using std::unordered_map;
-using std::stringstream;
-using std::ifstream;
-using std::ofstream;
+using drm_utils::DRMBuffer;
+using drm_utils::DRMLibLoader;
 using drm_utils::DRMMaster;
 using drm_utils::DRMResMgr;
-using drm_utils::DRMLibLoader;
-using drm_utils::DRMBuffer;
-using sde_drm::GetDRMManager;
 using sde_drm::DestroyDRMManager;
-using sde_drm::DRMDisplayType;
-using sde_drm::DRMDisplayToken;
+using sde_drm::DRMBlendType;
+using sde_drm::DRMCacheState;
 using sde_drm::DRMConnectorInfo;
+using sde_drm::DRMCrtcInfo;
+using sde_drm::DRMCscType;
+using sde_drm::DRMCWbCaptureMode;
+using sde_drm::DRMDisplayToken;
+using sde_drm::DRMDisplayType;
+using sde_drm::DRMMultiRectMode;
+using sde_drm::DRMOps;
+using sde_drm::DRMPowerMode;
 using sde_drm::DRMPPFeatureInfo;
 using sde_drm::DRMRect;
 using sde_drm::DRMRotation;
-using sde_drm::DRMBlendType;
-using sde_drm::DRMSrcConfig;
-using sde_drm::DRMOps;
-using sde_drm::DRMTopology;
-using sde_drm::DRMPowerMode;
 using sde_drm::DRMSecureMode;
 using sde_drm::DRMSecurityLevel;
-using sde_drm::DRMCscType;
-using sde_drm::DRMMultiRectMode;
-using sde_drm::DRMCrtcInfo;
-using sde_drm::DRMCWbCaptureMode;
-using sde_drm::DRMUcscIgcMode;
+using sde_drm::DRMSrcConfig;
+using sde_drm::DRMTopology;
 using sde_drm::DRMUcscGcMode;
+using sde_drm::DRMUcscIgcMode;
+using sde_drm::GetDRMManager;
+using std::fstream;
+using std::ifstream;
+using std::ofstream;
+using std::string;
+using std::stringstream;
+using std::to_string;
+using std::unordered_map;
 
 namespace sdm {
 
@@ -1436,6 +1437,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
       DLOGW("Expected full frame ROI");
     }
     ResetROI();
+  }
+
+  if (hw_panel_info_.fsc_panel) {
+    drm_atomic_intf_->Perform(DRMOps::CRTC_SET_CACHE_STATE, token_.crtc_id, DRMCacheState::ENABLED);
   }
 
 #ifdef TRUSTED_VM
