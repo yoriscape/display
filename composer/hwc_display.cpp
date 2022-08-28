@@ -1631,6 +1631,11 @@ HWC3::Error HWCDisplay::AcceptDisplayChanges() {
       DLOGW("Invalid layer: %" PRIu64, change.first);
     }
   }
+
+  // Clear layer changes, so that they don't get applied in next commit ie;
+  // cases where Prepare doesn't go through.
+  layer_changes_.clear();
+
   return HWC3::Error::None;
 }
 
