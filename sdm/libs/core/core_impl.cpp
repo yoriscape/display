@@ -163,6 +163,8 @@ DisplayError CoreImpl::Deinit() {
   }
 
   ReleaseDemuraResources();
+  if (pm_intf_)
+    pm_intf_->Deinit();
   ColorManagerProxy::Deinit();
 
   comp_mgr_.Deinit();

@@ -1410,7 +1410,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   if (needs_validate_) {
-    DLOGE("Commit: Corresponding Prepare() is not called for display %d-%d", display_id_,
+    DLOGW("Commit: Corresponding Prepare() is not called for display %d-%d", display_id_,
           display_type_);
     validated_ = false;
     return kErrorNotValidated;
@@ -3961,6 +3961,16 @@ void DisplayBase::ProcessPowerEvent() {
   cv_.notify_one();
 }
 
+void DisplayBase::Abort() {
+  std::unique_lock<std::mutex> lck(power_mutex_);
+
+  if (display_type_ == kHDMI && first_cycle_) {
+    DLOGI("Abort!");
+    transition_done_ = true;
+    cv_.notify_one();
+  }
+}
+
 void DisplayBase::CacheRetireFence() {
   if (draw_method_ == kDrawDefault) {
     retire_fence_ = disp_layer_stack_.info.retire_fence;
@@ -4107,7 +4117,7 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
 DisplayError DisplayBase::SetDimmingEnable(int int_enabled) {
   struct sde_drm::DRMPPFeatureInfo info = {};
   GenericPayload payload;
-  bool *bl_ctrl = nullptr;
+  uint64_t *bl_ctrl = nullptr;
 
   int ret = payload.CreatePayload(bl_ctrl);
   if (ret || !bl_ctrl) {
@@ -4115,13 +4125,13 @@ DisplayError DisplayBase::SetDimmingEnable(int int_enabled) {
     return kErrorUndefined;
   }
 
-  *bl_ctrl = int_enabled? true : false;
+  *bl_ctrl = int_enabled > 0 ? 1 : 0;
   info.object_type = DRM_MODE_OBJECT_CONNECTOR;
   info.id = sde_drm::kFeatureDimmingDynCtrl;
   info.type = sde_drm::kPropRange;
   info.version = 0;
   info.payload = bl_ctrl;
-  info.payload_size = sizeof(bool);
+  info.payload_size = sizeof(uint64_t);
   info.is_event = false;
 
   DLOGV_IF(kTagDisplay, "Display %d-%d set dimming enable %d", display_id_,
@@ -4132,7 +4142,7 @@ DisplayError DisplayBase::SetDimmingEnable(int int_enabled) {
 DisplayError DisplayBase::SetDimmingMinBl(int min_bl) {
   struct sde_drm::DRMPPFeatureInfo info = {};
   GenericPayload payload;
-  int *bl = nullptr;
+  uint64_t *bl = nullptr;
 
   int ret = payload.CreatePayload(bl);
   if (ret || !bl) {
@@ -4140,13 +4150,13 @@ DisplayError DisplayBase::SetDimmingMinBl(int min_bl) {
     return kErrorUndefined;
   }
 
-  *bl = min_bl;
+  *bl = min_bl > 0 ? min_bl : 0;
   info.object_type = DRM_MODE_OBJECT_CONNECTOR;
   info.id = sde_drm::kFeatureDimmingMinBl;
   info.type = sde_drm::kPropRange;
   info.version = 0;
   info.payload = bl;
-  info.payload_size = sizeof(int);
+  info.payload_size = sizeof(uint64_t);
   info.is_event = false;
 
   DLOGV_IF(kTagDisplay, "Display %d-%d set dimming min_bl %d", display_id_,
@@ -4283,6 +4293,19 @@ bool DisplayBase::HandleCwbTeardown() {
   }
 
   return comp_manager_->HandleCwbTeardown(display_comp_ctx_);
+}
+
+uint32_t DisplayBase::GetAvailableMixerCount() {
+  uint32_t max_count = hw_info_intf_->GetMaxMixerCount();
+  uint32_t cur_count = comp_manager_->GetMixerCount();
+
+  DLOGV("max mixer count: %d, currently used: %d", max_count, cur_count);
+  if (!max_count || max_count < cur_count) {
+    DLOGW("invalid mixer count, returing max");
+    return 0xff;
+  }
+
+  return max_count - cur_count;
 }
 
 }  // namespace sdm
