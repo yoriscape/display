@@ -3,6 +3,7 @@ DISPLAY_MODULES_HARDWARE:= vendor.qti.hardware.display.composer-service \
                         vendor.qti.hardware.display.mapper@4.0.vendor \
                         vendor.qti.hardware.display.allocator-service
 
+TARGET_IS_HEADLESS := false
 ifeq ($(TARGET_USES_QMAA),true)
     ifneq ($(TARGET_USES_QMAA_OVERRIDE_DISPLAY),true)
         #QMAA Mode is enabled
