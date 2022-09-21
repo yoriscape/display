@@ -241,6 +241,21 @@ static uint8_t PREMULTIPLIED = 2;
 static uint8_t COVERAGE = 3;
 static uint8_t SKIP_BLENDING = 4;
 
+// UCSC IGC modes
+static uint8_t UCSC_IGC_DISABLE = 0;
+static uint8_t UCSC_IGC_SRGB = 1;
+static uint8_t UCSC_IGC_REC709 = 2;
+static uint8_t UCSC_IGC_GAMMA2_2 = 3;
+static uint8_t UCSC_IGC_HLG = 4;
+static uint8_t UCSC_IGC_PQ = 5;
+
+// UCSC GC modes
+static uint8_t UCSC_GC_DISABLE = 0;
+static uint8_t UCSC_GC_SRGB = 1;
+static uint8_t UCSC_GC_PQ = 2;
+static uint8_t UCSC_GC_GAMMA2_2 = 3;
+static uint8_t UCSC_GC_HLG = 4;
+
 static void SetRect(DRMRect &source, drm_clip_rect *target) {
   target->x1 = uint16_t(source.left);
   target->y1 = uint16_t(source.top);
@@ -389,6 +404,54 @@ static bool GetDRMonemapLutTypeFromPPFeatureID(DRMPPFeatureID id, DRMTonemapLutT
       return false;
   }
   return true;
+}
+
+static void PopulateUcscIgcMode(drmModePropertyRes *prop) {
+  static bool ucsc_igc_populated = false;
+  if (!ucsc_igc_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "disable") {
+        UCSC_IGC_DISABLE = prop->enums[i].value;
+      } else if (enum_name == "srgb") {
+        UCSC_IGC_SRGB = prop->enums[i].value;
+      } else if (enum_name == "rec709") {
+        UCSC_IGC_REC709 = prop->enums[i].value;
+      } else if (enum_name == "gamma2_2") {
+        UCSC_IGC_GAMMA2_2 = prop->enums[i].value;
+      } else if (enum_name == "hlg") {
+        UCSC_IGC_HLG = prop->enums[i].value;
+      } else if (enum_name == "pq") {
+        UCSC_IGC_PQ = prop->enums[i].value;
+      } else {
+        DRM_LOGE("Unknown IGC mode - %s", enum_name.c_str());
+      }
+    }
+    ucsc_igc_populated = true;
+  }
+}
+
+static void PopulateUcscGcMode(drmModePropertyRes *prop) {
+  static bool ucsc_gc_populated = false;
+  if (!ucsc_gc_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "disable") {
+        UCSC_GC_DISABLE = prop->enums[i].value;
+      } else if (enum_name == "srgb") {
+        UCSC_GC_SRGB = prop->enums[i].value;
+      } else if (enum_name == "pq") {
+        UCSC_GC_PQ = prop->enums[i].value;
+      } else if (enum_name == "gamma2_2") {
+        UCSC_GC_GAMMA2_2 = prop->enums[i].value;
+      } else if (enum_name == "hlg") {
+        UCSC_GC_HLG = prop->enums[i].value;
+      } else {
+        DRM_LOGE("Unknown GC mode - %s", enum_name.c_str());
+      }
+    }
+    ucsc_gc_populated = true;
+  }
 }
 
 DRMPlaneManager::DRMPlaneManager(int fd) : fd_(fd) {}
@@ -776,6 +839,10 @@ void DRMPlane::ParseProperties() {
       plane_type_info_.multirect_prop_present = true;
     } else if (prop_enum == DRMProperty::BLEND_OP) {
       PopulateBlendType(info);
+    } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_IGC_V1) {
+      PopulateUcscIgcMode(info);
+    } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_GC_V1) {
+      PopulateUcscGcMode(info);
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
@@ -816,6 +883,36 @@ void DRMPlane::ParseProperties() {
         (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V6) {
       plane_type_info_.tonemap_lut_version_map[DRMTonemapLutType::VIG_3D_GAMUT] =
           ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V5 + 5);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_UNMULT] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_IGC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_CSC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_GC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_ALPHA_DITHER] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1 + 1);
     }
   }
 

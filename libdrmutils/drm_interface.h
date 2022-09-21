@@ -756,6 +756,31 @@ enum struct DRMTonemapLutType {
   VIG_3D_GAMUT,
 };
 
+enum struct DRMUcscBlockType {
+  UCSC_UNMULT,
+  UCSC_IGC,
+  UCSC_CSC,
+  UCSC_GC,
+  UCSC_ALPHA_DITHER,
+};
+
+enum struct DRMUcscGcMode {
+  UCSC_GC_MODE_DISABLE = 0,
+  UCSC_GC_MODE_SRGB,
+  UCSC_GC_MODE_PQ,
+  UCSC_GC_MODE_GAMMA2_2,
+  UCSC_GC_MODE_HLG,
+};
+
+enum struct DRMUcscIgcMode {
+  UCSC_IGC_MODE_DISABLE = 0,
+  UCSC_IGC_MODE_SRGB,
+  UCSC_IGC_MODE_REC709,
+  UCSC_IGC_MODE_GAMMA2_2,
+  UCSC_IGC_MODE_HLG,
+  UCSC_IGC_MODE_PQ,
+};
+
 struct DRMPlaneTypeInfo {
   DRMPlaneType type;
   uint32_t master_plane_id;
@@ -781,6 +806,7 @@ struct DRMPlaneTypeInfo {
   bool inverse_pma = false;
   uint32_t dgm_csc_version = 0;  // csc used with DMA
   std::map<DRMTonemapLutType, uint32_t> tonemap_lut_version_map = {};
+  std::map<DRMUcscBlockType, uint32_t> ucsc_block_version_map = {};
   bool block_sec_ui = false;
   int32_t pipe_idx = -1;
   int32_t demura_block_capability = -1;
