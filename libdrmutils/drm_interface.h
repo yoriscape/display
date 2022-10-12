@@ -236,6 +236,36 @@ enum struct DRMOps {
    */
   PLANE_SET_FP16_GC_CONFIG,
   /*
+   * Op: Sets UCSC UNMULT config on this plane.
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - enable
+   */
+  PLANE_SET_UCSC_UNMULT_CONFIG,
+  /*
+   * Op: Sets UCSC IGC config on this plane.
+   * Arg: uint32_t - Plane ID
+   *      DRMUcscIgcMode - IGC config
+   */
+  PLANE_SET_UCSC_IGC_CONFIG,
+  /*
+   * Op: Sets UCSC CSC config on this plane.
+   * Arg: uint32_t - Plane ID
+   *      drm_msm_ucsc_csc - CSC config
+   */
+  PLANE_SET_UCSC_CSC_CONFIG,
+  /*
+   * Op: Sets UCSC GC config on this plane.
+   * Arg: uint32_t - Plane ID
+   *      DRMUcscGcMode - GC config
+   */
+  PLANE_SET_UCSC_GC_CONFIG,
+  /*
+   * Op: Sets UCSC ALPHA DITHER config on this plane.
+   * Arg: uint32_t - Plane ID
+   *      uint32_t - enable
+   */
+  PLANE_SET_UCSC_ALPHA_DITHER_CONFIG,
+  /*
    * Op: Resets property cache of all planes that are assigned to given CRTC
    * Arg: uint32_t - CRTC ID
    */

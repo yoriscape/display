@@ -1113,6 +1113,35 @@ void DRMPlane::UnsetFp16GcConfig() {
   }
 }
 
+#ifdef UCSC_SUPPORTED
+void DRMPlane::SetUcscCscConfig(drmModeAtomicReq *req, drm_msm_ucsc_csc *ucsc_csc_config) {
+  uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_CSC_V1);
+  if (!prop_id) {
+    return;
+  }
+
+  UnsetUcscCscConfig();
+
+  if (ucsc_csc_config == nullptr) {
+    AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
+    DRM_LOGD("Plane %d: Resetting UCSC CSC", drm_plane_->plane_id);
+  } else {
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(ucsc_csc_config),
+                              sizeof(drm_msm_ucsc_csc), &ucsc_csc_blob_id_);
+    AddProperty(req, drm_plane_->plane_id, prop_id, ucsc_csc_blob_id_, false /* cache */,
+                tmp_prop_val_map_);
+    DRM_LOGD("Plane %d: Setting UCSC CSC", drm_plane_->plane_id);
+  }
+}
+
+void DRMPlane::UnsetUcscCscConfig() {
+  if (ucsc_csc_blob_id_) {
+    drmModeDestroyPropertyBlob(fd_, ucsc_csc_blob_id_);
+    ucsc_csc_blob_id_ = 0;
+  }
+}
+#endif
+
 bool DRMPlane::SetScalerConfig(drmModeAtomicReq *req, uint64_t handle) {
   if (plane_type_info_.type != DRMPlaneType::VIG) {
     return false;
@@ -1440,6 +1469,107 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t config = va_arg(args, uint32_t);
       SetFp16UnmultConfig(req, config);
     } break;
+
+#ifdef UCSC_SUPPORTED
+    case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_UNMULT_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      uint32_t ucsc_unmult = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_id, ucsc_unmult, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC UNMULT", obj_id, ucsc_unmult ? "Setting" : "Resetting");
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_IGC_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_IGC_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      DRMUcscIgcMode ucsc_igc = va_arg(args, DRMUcscIgcMode);
+      uint32_t igc = UCSC_IGC_DISABLE;
+      switch (ucsc_igc) {
+        case DRMUcscIgcMode::UCSC_IGC_MODE_SRGB:
+          igc = UCSC_IGC_SRGB;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_REC709:
+          igc = UCSC_IGC_REC709;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_GAMMA2_2:
+          igc = UCSC_IGC_GAMMA2_2;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_HLG:
+          igc = UCSC_IGC_HLG;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_PQ:
+          igc = UCSC_IGC_PQ;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_DISABLE:
+          igc = UCSC_IGC_DISABLE;
+          break;
+        default:
+          DRM_LOGE("Invalid igc mode %d to set on plane %d", ucsc_igc, obj_id);
+          break;
+      }
+
+      AddProperty(req, obj_id, prop_id, igc, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC IGC - %d", obj_id,
+               (igc == UCSC_IGC_DISABLE) ? "Resetting" : "Setting", igc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_CSC_CONFIG: {
+      drm_msm_ucsc_csc *ucsc_csc = va_arg(args, drm_msm_ucsc_csc *);
+      SetUcscCscConfig(req, ucsc_csc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_GC_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_GC_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      DRMUcscGcMode ucsc_gc = va_arg(args, DRMUcscGcMode);
+      uint32_t gc = UCSC_GC_DISABLE;
+      switch (ucsc_gc) {
+        case DRMUcscGcMode::UCSC_GC_MODE_SRGB:
+          gc = UCSC_GC_SRGB;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_PQ:
+          gc = UCSC_GC_PQ;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_GAMMA2_2:
+          gc = UCSC_GC_GAMMA2_2;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_HLG:
+          gc = UCSC_GC_HLG;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_DISABLE:
+          gc = UCSC_GC_DISABLE;
+          break;
+        default:
+          DRM_LOGE("Invalid gc mode %d to set on plane %d", ucsc_gc, obj_id);
+          break;
+      }
+
+      AddProperty(req, obj_id, prop_id, gc, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC GC - %d", obj_id,
+               (gc == UCSC_GC_DISABLE) ? "Resetting" : "Setting", gc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      uint32_t ucsc_alpha_dither = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_id, ucsc_alpha_dither, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC ALPHA DITHER", obj_id,
+               ucsc_alpha_dither ? "Setting" : "Resetting");
+    } break;
+#endif
 
     default:
       DRM_LOGE("Invalid opcode %d for DRM Plane %d", code, obj_id);
