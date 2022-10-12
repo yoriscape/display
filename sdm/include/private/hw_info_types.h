@@ -310,6 +310,7 @@ enum HWQseedStepVersion {
   kQseed3litev5,
   kQseed3litev7,
   kQseed3litev8,
+  kQseed3litev9,
 };
 
 struct HWDestScalarInfo {
@@ -636,6 +637,8 @@ struct HWScaleData {
     uint8_t direction_detection = 0;
     uint8_t detail_enhance = 0;
     uint8_t dyn_exp_disable = 0;     // RGB format dynamic pixel expansion disable.
+    uint8_t dir45_detection = 0;
+    uint8_t corner_detection = 0;
   } enable;
   uint32_t dst_width = 0;
   uint32_t dst_height = 0;

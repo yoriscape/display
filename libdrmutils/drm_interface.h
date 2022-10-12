@@ -665,6 +665,7 @@ enum struct QSEEDStepVersion {
   V3LITE_V5,
   V3LITE_V7,
   V3LITE_V8,
+  V3LITE_V9,
 };
 
 enum struct SmartDMARevision {

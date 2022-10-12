@@ -110,10 +110,17 @@ void HWScaleDRM::SetScaler(const HWScaleData &scale_data, SDEScaler *scaler) {
 
 void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *scaler) {
   if (!scale_data.enable.scale && !scale_data.enable.direction_detection &&
-      !scale_data.enable.detail_enhance) {
+      !scale_data.enable.detail_enhance && !scale_data.enable.dir45_detection &&
+      !scale_data.enable.corner_detection) {
     scaler->enable = 0;
     scaler->dir_en = 0;
     scaler->de.enable = 0;
+
+#ifdef SDE_DRM_QSEED6
+    scaler->dir45_en = 0;
+    scaler->cor_en = 0;
+#endif
+
     return;
   }
 
@@ -122,6 +129,12 @@ void HWScaleDRM::SetScalerV2(const HWScaleData &scale_data, sde_drm_scaler_v2 *s
 #ifdef SDE_DRM_QSEED4
   scaler->flags = (scale_data.enable.dyn_exp_disable ? SDE_DYN_EXP_DISABLE : 0);
   scaler->de_blend = scale_data.detail_enhance.de_blend;
+#endif
+
+#ifdef SDE_DRM_QSEED6
+  scaler->enable |= (scale_data.enable.dir45_detection | scale_data.enable.corner_detection);
+  scaler->dir45_en = (scale_data.enable.dir45_detection ? scale_data.enable.dir45_detection : 0);
+  scaler->cor_en = (scale_data.enable.corner_detection ? scale_data.enable.corner_detection : 0);
 #endif
 
 #ifdef SDE_DE_LPF_BLEND_FILT

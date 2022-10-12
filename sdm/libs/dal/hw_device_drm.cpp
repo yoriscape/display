@@ -2822,10 +2822,13 @@ void HWDeviceDRM::DumpHWLayers(HWLayersInfo *hw_layers_info) {
             INT(pipe_info.excl_rect.right), INT(pipe_info.excl_rect.bottom));
       if (scale_data.enable.scale) {
       DLOGI("HWScaleData enable flags: scale = %s, direction_detection = %s, detail_enhance = %s,"
-            " dyn_exp_disable = %s", scale_data.enable.scale ? "true" : "false",
+            " dyn_exp_disable = %s, dir45_detection = %s, corner_detection = %s",
+            scale_data.enable.scale ? "true" : "false",
             scale_data.enable.direction_detection ? "true" : "false",
             scale_data.enable.detail_enhance ? "true" : "false",
-            scale_data.enable.dyn_exp_disable ? "true" : "false");
+            scale_data.enable.dyn_exp_disable ? "true" : "false",
+            scale_data.enable.dir45_detection ? "true" : "false",
+            scale_data.enable.corner_detection ? "true" : "false");
       DLOGI("lut_flags: lut_swap = 0x%X, lut_dir_wr = 0x%X, lut_y_cir_wr = 0x%X, "
             "lut_uv_cir_wr = 0x%X, lut_y_sep_wr = 0x%X, lut_uv_sep_wr = 0x%X",
             scale_data.lut_flag.lut_swap, scale_data.lut_flag.lut_dir_wr,
