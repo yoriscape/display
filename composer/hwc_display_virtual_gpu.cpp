@@ -96,7 +96,6 @@ HWC3::Error HWCDisplayVirtualGPU::Validate(uint32_t *out_num_types, uint32_t *ou
   layer_requests_.clear();
 
   // Mark all layers to GPU if there is no need to bypass.
-  bool fbt_compatible = true;
   bool needs_gpu_bypass = NeedsGPUBypass() || FreezeScreen();
   for (auto hwc_layer : layer_set_) {
     auto layer = hwc_layer->GetSDMLayer();
@@ -122,9 +121,7 @@ HWC3::Error HWCDisplayVirtualGPU::Validate(uint32_t *out_num_types, uint32_t *ou
   *out_num_requests = UINT32(layer_requests_.size());
   ;
   has_client_composition_ = !needs_gpu_bypass;
-
-  // FBT is compatible if all layers are compatible or gpu is bypassed.
-  fbt_compatible_ = has_client_composition_ && fbt_compatible;
+  validate_done_ = true;
 
   return ((*out_num_types > 0) ? HWC3::Error::HasChanges : HWC3::Error::None);
 }
@@ -135,12 +132,9 @@ HWC3::Error HWCDisplayVirtualGPU::CommitOrPrepare(bool validate_only,
                                                   uint32_t *out_num_requests, bool *needs_commit) {
   // Perform validate and commit.
   auto status = Validate(out_num_types, out_num_requests);
-  if (!fbt_compatible_) {
-    *needs_commit = true;
-    return status;
-  }
 
-  return Present(out_retire_fence);
+  *needs_commit = true;
+  return status;
 }
 
 HWC3::Error HWCDisplayVirtualGPU::SetOutputBuffer(buffer_handle_t buf,
