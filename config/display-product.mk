@@ -147,7 +147,10 @@ endif
 SOONG_CONFIG_NAMESPACES += qtidisplay
 
 # Soong Keys
-SOONG_CONFIG_qtidisplay := drmpp headless llvmsa gralloc4 displayconfig_enabled default var1 var2 var3 llvmcov
+SOONG_CONFIG_qtidisplay := drmpp headless llvmsa \
+                           gralloc4 displayconfig_enabled \
+                           default var1 var2 var3 llvmcov  \
+                           composer_version
 
 # Soong Values
 SOONG_CONFIG_qtidisplay_drmpp := true
@@ -160,6 +163,12 @@ SOONG_CONFIG_qtidisplay_var1 := false
 SOONG_CONFIG_qtidisplay_var2 := false
 SOONG_CONFIG_qtidisplay_var3 := false
 SOONG_CONFIG_qtidisplay_llvmcov := false
+
+SOONG_CONFIG_qtidisplay_composer_version := v2
+ifeq ($(TARGET_USES_COMPOSER3),true)
+    SOONG_CONFIG_qtidisplay_composer_version := v3
+    $(warning "Using composer3")
+endif
 
 ifeq ($(call is-vendor-board-platform,QCOM),true)
     SOONG_CONFIG_qtidisplay_displayconfig_enabled := true
