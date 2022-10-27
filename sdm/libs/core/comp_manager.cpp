@@ -779,11 +779,12 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
                             display_comp_ctx->display_resource_ctx);
   }
   if (secure_event == kTUITransitionStart) {
-    resource_intf_->HandleTUITransition(true);
+    resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, true);
   }
   if (secure_event == kTUITransitionEnd) {
     resource_intf_->Perform(ResourceInterface::kCmdResetLUT,
                             display_comp_ctx->display_resource_ctx);
+    resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
     safe_mode_ = false;
   }
   safe_mode_ = (secure_event == kTUITransitionStart) ? true : safe_mode_;
@@ -792,8 +793,12 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
 
 void CompManager::PostHandleSecureEvent(Handle display_ctx, SecureEvent secure_event) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
   if (secure_event == kSecureDisplayEnd) {
-    resource_intf_->HandleTUITransition(false);
+    resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
     secure_event_ = kSecureEventMax;
   }
 }
