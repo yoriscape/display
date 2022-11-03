@@ -54,7 +54,7 @@ class HWCCallbacks {
   static const int kNumDisplays =
       1 + kNumBuiltIn + kNumPluggable + kNumVirtual + 1 + kNumBuiltIn + kNumPluggable;
 
-  HWC3::Error Hotplug(Display display, Connection state);
+  HWC3::Error Hotplug(Display display, bool state);
   HWC3::Error Refresh(Display display);
   HWC3::Error Vsync(Display display, int64_t timestamp, uint32_t period);
   HWC3::Error VsyncIdle(Display display);

@@ -48,17 +48,17 @@
 namespace sdm {
 
 struct GLRect {
-  float left_ = 0.0f;
-  float top_ = 0.0f;
-  float right_ = 0.0f;
-  float bottom_ = 0.0f;
+  float left = 0.0f;
+  float top = 0.0f;
+  float right = 0.0f;
+  float bottom = 0.0f;
 };
 
 struct GLContext {
-  EGLDisplay egl_display_ = EGL_NO_DISPLAY;
-  EGLContext egl_context_ = EGL_NO_CONTEXT;
-  EGLSurface egl_surface_ = EGL_NO_SURFACE;
-  uint32_t program_id_ = 0;
+  EGLDisplay egl_display = EGL_NO_DISPLAY;
+  EGLContext egl_context = EGL_NO_CONTEXT;
+  EGLSurface egl_surface = EGL_NO_SURFACE;
+  uint32_t program_id = 0;
 };
 
 class GLCommon {

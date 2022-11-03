@@ -46,7 +46,7 @@ const float kFullScreenVertices[] = {-1.0f, 3.0f, -1.0f, -1.0f, 3.0f, -1.0f};
 
 const float kFullScreenTexCoords[] = {0.0f, 2.0f, 0.0f, 0.0f, 2.0f, 0.0f};
 
-const char *k_vertex_shader1 =
+const char *kVertexShader1 =
     ""
     "#version 300 es                                                       \n"
     "precision highp float;                                                \n"
@@ -61,7 +61,7 @@ const char *k_vertex_shader1 =
     "    uv = in_uv;                                                       \n"
     "}                                                                     \n";
 
-const char *k_convert_render_rgb_shader =
+const char *kConvertRenderRGBShader =
     ""
     "precision highp float;                                                \n"
     "                                                                      \n"
@@ -76,15 +76,15 @@ const char *k_convert_render_rgb_shader =
     "}                                                                     \n";
 
 static bool IsValid(const GLRect &rect) {
-  return ((rect.right_ - rect.left_) && (rect.bottom_ - rect.top_));
+  return ((rect.right - rect.left) && (rect.bottom - rect.top));
 }
 
 int GLLayerStitchImpl::CreateContext(bool secure) {
-  ctx_.egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  ctx_.egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   EGL(eglBindAPI(EGL_OPENGL_ES_API));
 
   // Initialize current display.
-  EGL(eglInitialize(ctx_.egl_display_, nullptr, nullptr));
+  EGL(eglInitialize(ctx_.egl_display, nullptr, nullptr));
 
   // Get attributes corresponing to render target.
   // Describes Framebuffer attributes like buffer depth, color space etc;
@@ -96,7 +96,7 @@ int GLLayerStitchImpl::CreateContext(bool secure) {
                                      EGL_BLUE_SIZE,    8,
                                      EGL_ALPHA_SIZE,   8,
                                      EGL_NONE};
-  EGL(eglChooseConfig(ctx_.egl_display_, egl_config_attrib_list, &egl_config, 1, &num_config));
+  EGL(eglChooseConfig(ctx_.egl_display, egl_config_attrib_list, &egl_config, 1, &num_config));
 
   // When GPU runs in protected context it can read from
   //  - Protected sources
@@ -106,8 +106,8 @@ int GLLayerStitchImpl::CreateContext(bool secure) {
   EGLint egl_context_attrib_list[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE, EGL_NONE};
-  ctx_.egl_context_ =
-      eglCreateContext(ctx_.egl_display_, egl_config, NULL, egl_context_attrib_list);
+  ctx_.egl_context =
+      eglCreateContext(ctx_.egl_display, egl_config, NULL, egl_context_attrib_list);
 
   // eglCreatePbufferSurface creates an off-screen pixel buffer surface and returns its handle
   EGLint egl_surface_attrib_list[] = {EGL_WIDTH,
@@ -117,13 +117,13 @@ int GLLayerStitchImpl::CreateContext(bool secure) {
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE,
                                       EGL_NONE};
-  ctx_.egl_surface_ =
-      eglCreatePbufferSurface(ctx_.egl_display_, egl_config, egl_surface_attrib_list);
+  ctx_.egl_surface =
+      eglCreatePbufferSurface(ctx_.egl_display, egl_config, egl_surface_attrib_list);
 
   // eglMakeCurrent attaches rendering context to rendering surface.
   MakeCurrent(&ctx_);
 
-  DLOGI("Created context = %p", (void *)(&ctx_.egl_context_));
+  DLOGI("Created context = %p", (void *)(&ctx_.egl_context));
 
   // Load Vertex and Fragment shaders.
   const char *fragment_shaders[2] = {};
@@ -133,9 +133,9 @@ int GLLayerStitchImpl::CreateContext(bool secure) {
   fragment_shaders[count++] = version;
 
   // ToDo: Add support to yuv_to_rgb shader.
-  fragment_shaders[count++] = k_convert_render_rgb_shader;
+  fragment_shaders[count++] = kConvertRenderRGBShader;
 
-  ctx_.program_id_ = LoadProgram(1, &k_vertex_shader1, count, fragment_shaders);
+  ctx_.program_id = LoadProgram(1, &kVertexShader1, count, fragment_shaders);
 
   SetRealTimePriority();
   InitContext();
@@ -151,13 +151,13 @@ int GLLayerStitchImpl::Blit(const std::vector<StitchParams> &stitch_params,
   std::vector<shared_ptr<Fence>> release_fences;
   bool can_batch = !NeedsGLScissor(stitch_params);
   for (auto &info : stitch_params) {
-    SetSourceBuffer(info.src_hnd_);
-    SetDestinationBuffer(info.dst_hnd_);
-    SetViewport(info.dst_rect_);
-    ClearWithTransparency(info.scissor_rect_);
+    SetSourceBuffer(info.src_hnd);
+    SetDestinationBuffer(info.dst_hnd);
+    SetViewport(info.dst_rect);
+    ClearWithTransparency(info.scissor_rect);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    acquire_fences.push_back(info.src_acquire_fence_);
+    acquire_fences.push_back(info.src_acquire_fence);
 
     if (!can_batch) {
       // Trigger flush and cache release fence.
@@ -183,7 +183,7 @@ int GLLayerStitchImpl::Blit(const std::vector<StitchParams> &stitch_params,
 
 int GLLayerStitchImpl::NeedsGLScissor(const std::vector<StitchParams> &stitch_params) {
   for (auto &info : stitch_params) {
-    if (IsValid(info.scissor_rect_)) {
+    if (IsValid(info.scissor_rect)) {
       return true;
     }
   }
@@ -212,8 +212,8 @@ void GLLayerStitchImpl::ClearWithTransparency(const GLRect &scissor_rect) {
   DTRACE_SCOPED();
   // Enable scissor test.
   GL(glEnable(GL_SCISSOR_TEST));
-  GL(glScissor(scissor_rect.left_, scissor_rect.top_, scissor_rect.right_ - scissor_rect.left_,
-               scissor_rect.bottom_ - scissor_rect.top_));
+  GL(glScissor(scissor_rect.left, scissor_rect.top, scissor_rect.right - scissor_rect.left,
+               scissor_rect.bottom - scissor_rect.top));
   GL(glClearColor(0, 0, 0, 0));
   GL(glClear(GL_COLOR_BUFFER_BIT));
 }
@@ -221,7 +221,7 @@ void GLLayerStitchImpl::ClearWithTransparency(const GLRect &scissor_rect) {
 void GLLayerStitchImpl::InitContext() {
   // eglMakeCurrent attaches rendering context to rendering surface.
   MakeCurrent(&ctx_);
-  SetProgram(ctx_.program_id_);
+  SetProgram(ctx_.program_id);
   SetRealTimePriority();
   // Set vertices.
   glEnableVertexAttribArray(0);

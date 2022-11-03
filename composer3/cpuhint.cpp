@@ -75,45 +75,45 @@ DisplayError CPUHint::Init(HWCDebugHandler *debug_handler) {
 
 int CPUHint::ReqHintsOffload(int hint, int tid) {
   if (enabled_ && hint > 0) {
-    if (large_comp_cycle_.status_ == kActive) {
+    if (large_comp_cycle_.status == kActive) {
       nsecs_t current_time = systemTime(SYSTEM_TIME_MONOTONIC);
-      nsecs_t difference = current_time - large_comp_cycle_.start_time_;
+      nsecs_t difference = current_time - large_comp_cycle_.start_time;
 
       if (nanoseconds_to_seconds(difference) >= 4) {
         DLOGV_IF(kTagCpuHint, "Renew large composition hint:%d [start_time:%" PRIu64
                               " - current_time:%" PRIu64 " = %" PRIu64 "]",
-                 large_comp_cycle_.handle_id_, large_comp_cycle_.start_time_, current_time,
+                 large_comp_cycle_.handle_id, large_comp_cycle_.start_time, current_time,
                  difference);
 
-        large_comp_cycle_.status_ = kRenew;
+        large_comp_cycle_.status = kRenew;
       }
 
-      if (tid != 0 && tid != large_comp_cycle_.tid_) {
+      if (tid != 0 && tid != large_comp_cycle_.tid) {
         DLOGV_IF(kTagCpuHint, "Renew large composition hint:%d [oldTid:%d newTid:%d]",
-                 large_comp_cycle_.handle_id_, large_comp_cycle_.tid_, tid);
+                 large_comp_cycle_.handle_id, large_comp_cycle_.tid, tid);
 
-        large_comp_cycle_.status_ = kRenew;
+        large_comp_cycle_.status = kRenew;
       }
     }
 
-    if (large_comp_cycle_.status_ == kInactive || large_comp_cycle_.status_ == kRenew) {
-      PerfHintStatus current_status = large_comp_cycle_.status_;
-      int handle = fn_perf_hint_acq_rel_offload_(large_comp_cycle_.handle_id_, hint, nullptr, tid,
+    if (large_comp_cycle_.status == kInactive || large_comp_cycle_.status == kRenew) {
+      PerfHintStatus current_status = large_comp_cycle_.status;
+      int handle = fn_perf_hint_acq_rel_offload_(large_comp_cycle_.handle_id, hint, nullptr, tid,
                                                  0, 0, nullptr);
       if (handle < 0) {
         DLOGW("Failed to request large composition hint ret:%d", handle);
         return -1;
       }
 
-      large_comp_cycle_.handle_id_ = handle;
-      large_comp_cycle_.tid_ = (tid != 0) ? tid : large_comp_cycle_.tid_;
-      large_comp_cycle_.start_time_ = systemTime(SYSTEM_TIME_MONOTONIC);
-      large_comp_cycle_.status_ = kActive;
+      large_comp_cycle_.handle_id = handle;
+      large_comp_cycle_.tid = (tid != 0) ? tid : large_comp_cycle_.tid;
+      large_comp_cycle_.start_time = systemTime(SYSTEM_TIME_MONOTONIC);
+      large_comp_cycle_.status = kActive;
       DLOGV_IF(
           kTagCpuHint,
           "Successfully %s large comp hint: handle_id:%d type:0x%x startTime:%" PRIu64 " status:%d",
-          (current_status == kInactive) ? "initialized" : "renewed", large_comp_cycle_.handle_id_,
-          k_large_composition_, large_comp_cycle_.start_time_, large_comp_cycle_.status_);
+          (current_status == kInactive) ? "initialized" : "renewed", large_comp_cycle_.handle_id,
+          kLargeComposition, large_comp_cycle_.start_time, large_comp_cycle_.status);
     }
   }
 
@@ -121,18 +121,18 @@ int CPUHint::ReqHintsOffload(int hint, int tid) {
 }
 
 int CPUHint::ReqHintRelease() {
-  if (large_comp_cycle_.status_ == kActive || large_comp_cycle_.status_ == kRenew) {
-    int ret = fn_perf_lock_rel_offload_(large_comp_cycle_.handle_id_);
+  if (large_comp_cycle_.status == kActive || large_comp_cycle_.status == kRenew) {
+    int ret = fn_perf_lock_rel_offload_(large_comp_cycle_.handle_id);
     if (ret < 0) {
       DLOGV_IF(kTagCpuHint, "Failed to release large comp hint ret:%d", ret);
       return -1;
     }
 
     DLOGV_IF(kTagCpuHint, "Release large comp hint ret:%d", ret);
-    large_comp_cycle_.handle_id_ = 0;
-    large_comp_cycle_.tid_ = 0;
-    large_comp_cycle_.start_time_ = 0;
-    large_comp_cycle_.status_ = kInactive;
+    large_comp_cycle_.handle_id = 0;
+    large_comp_cycle_.tid = 0;
+    large_comp_cycle_.start_time = 0;
+    large_comp_cycle_.status = kInactive;
   }
   return 0;
 }
@@ -142,8 +142,8 @@ int CPUHint::ReqHint(PerfHintThreadType type, int tid) {
 
   std::thread worker(
       [this](uint32_t tid, PerfHintThreadType type) {
-        int ret = fn_perf_hint_(k_hint_pass_pid_, nullptr, tid, type);
-        if (ret == k_pass_pid_success_) {
+        int ret = fn_perf_hint_(kHintPassPid, nullptr, tid, type);
+        if (ret == kPassPidSuccess) {
           DLOGV_IF(kTagCpuHint, "Successfully sent HWC's tid:%d", tid);
           return 0;
         } else {

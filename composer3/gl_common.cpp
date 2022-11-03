@@ -84,7 +84,7 @@ void GLCommon::DumpShaderLog(int shader) {
 
 void GLCommon::MakeCurrent(const GLContext *ctx) {
   DTRACE_SCOPED();
-  EGL(eglMakeCurrent(ctx->egl_display_, ctx->egl_surface_, ctx->egl_surface_, ctx->egl_context_));
+  EGL(eglMakeCurrent(ctx->egl_display, ctx->egl_surface, ctx->egl_surface, ctx->egl_context));
 }
 
 void GLCommon::SetProgram(uint32_t id) {
@@ -172,11 +172,11 @@ void GLCommon::DestroyContext(GLContext *ctx) {
   // Clear egl image buffers.
   image_wrapper_.Deinit();
 
-  EGL(DeleteProgram(ctx->program_id_));
-  EGL(eglMakeCurrent(ctx->egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
-  EGL(eglDestroySurface(ctx->egl_display_, ctx->egl_surface_));
-  EGL(eglDestroyContext(ctx->egl_display_, ctx->egl_context_));
-  EGL(eglTerminate(ctx->egl_display_));
+  EGL(DeleteProgram(ctx->program_id));
+  EGL(eglMakeCurrent(ctx->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  EGL(eglDestroySurface(ctx->egl_display, ctx->egl_surface));
+  EGL(eglDestroyContext(ctx->egl_display, ctx->egl_context));
+  EGL(eglTerminate(ctx->egl_display));
 }
 
 void GLCommon::ClearCache() {
@@ -196,9 +196,9 @@ void GLCommon::SetRealTimePriority() {
 
 void GLCommon::SetViewport(const GLRect &dst_rect) {
   DTRACE_SCOPED();
-  float width = dst_rect.right_ - dst_rect.left_;
-  float height = dst_rect.bottom_ - dst_rect.top_;
-  GL(glViewport(dst_rect.left_, dst_rect.top_, width, height));
+  float width = dst_rect.right - dst_rect.left;
+  float height = dst_rect.bottom - dst_rect.top;
+  GL(glViewport(dst_rect.left, dst_rect.top, width, height));
 }
 
 }  // namespace sdm

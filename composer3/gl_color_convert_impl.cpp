@@ -83,11 +83,11 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
     return -1;
   }
 
-  ctx_.egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  ctx_.egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   EGL(eglBindAPI(EGL_OPENGL_ES_API));
 
   // Initialize current display.
-  EGL(eglInitialize(ctx_.egl_display_, nullptr, nullptr));
+  EGL(eglInitialize(ctx_.egl_display, nullptr, nullptr));
 
   // Get attributes corresponing to render target.
   // Describes Framebuffer attributes like buffer depth, color space etc;
@@ -100,7 +100,7 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
                                        EGL_BLUE_SIZE,    8,
                                        EGL_ALPHA_SIZE,   8,
                                        EGL_NONE};
-    EGL(eglChooseConfig(ctx_.egl_display_, egl_config_attrib_list, &egl_config, 1, &num_config));
+    EGL(eglChooseConfig(ctx_.egl_display, egl_config_attrib_list, &egl_config, 1, &num_config));
   } else {
     EGLint egl_config_attrib_list[] = {EGL_SURFACE_TYPE,
                                        EGL_PBUFFER_BIT,
@@ -121,7 +121,7 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
                                        EGL_YUV_PLANE_BPP_EXT,
                                        EGL_YUV_PLANE_BPP_8_EXT,
                                        EGL_NONE};
-    EGL(eglChooseConfig(ctx_.egl_display_, egl_config_attrib_list, &egl_config, 1, &num_config));
+    EGL(eglChooseConfig(ctx_.egl_display, egl_config_attrib_list, &egl_config, 1, &num_config));
   }
 
   // When GPU runs in protected context it can read from
@@ -132,8 +132,8 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
   EGLint egl_context_attrib_list[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE, EGL_NONE};
-  ctx_.egl_context_ =
-      eglCreateContext(ctx_.egl_display_, egl_config, NULL, egl_context_attrib_list);
+  ctx_.egl_context =
+      eglCreateContext(ctx_.egl_display, egl_config, NULL, egl_context_attrib_list);
 
   // eglCreatePbufferSurface creates an off-screen pixel buffer surface and returns its handle
   EGLint egl_surface_attrib_list[] = {EGL_WIDTH,
@@ -143,13 +143,13 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE,
                                       EGL_NONE};
-  ctx_.egl_surface_ =
-      eglCreatePbufferSurface(ctx_.egl_display_, egl_config, egl_surface_attrib_list);
+  ctx_.egl_surface =
+      eglCreatePbufferSurface(ctx_.egl_display, egl_config, egl_surface_attrib_list);
 
   // eglMakeCurrent attaches rendering context to rendering surface.
   MakeCurrent(&ctx_);
 
-  DLOGI("Created context = %p", (void *)(&ctx_.egl_context_));
+  DLOGI("Created context = %p", (void *)(&ctx_.egl_context));
 
   // Load Vertex and Fragment shaders.
   const char *fragment_shaders[2] = {};
@@ -161,7 +161,7 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
   // ToDo: Add support to yuv_to_rgb shader.
   fragment_shaders[count++] = kConvertRgbToYuvShader;
 
-  ctx_.program_id_ = LoadProgram(1, &kVertexShader, count, fragment_shaders);
+  ctx_.program_id = LoadProgram(1, &kVertexShader, count, fragment_shaders);
 
   SetRealTimePriority();
 
@@ -177,7 +177,7 @@ int GLColorConvertImpl::Blit(const native_handle_t *src_hnd, const native_handle
   // eglMakeCurrent attaches rendering context to rendering surface.
   MakeCurrent(&ctx_);
 
-  SetProgram(ctx_.program_id_);
+  SetProgram(ctx_.program_id);
 
   SetSourceBuffer(src_hnd);
   SetDestinationBuffer(dst_hnd);

@@ -43,7 +43,7 @@
 
 namespace sdm {
 
-HWC3::Error HWCCallbacks::Hotplug(Display display, Connection state) {
+HWC3::Error HWCCallbacks::Hotplug(Display display, bool state) {
   SCOPE_LOCK(hotplug_lock_);
   DTRACE_SCOPED();
 

@@ -99,10 +99,16 @@ qtidisplay_cc_defaults {
     tidy_checks: [
         "-*",
         "cert-*",
+        "-cert-dcl50-cpp",
         "bugprone-*",
+        "-bugprone-lambda-function-name",
+        "-bugprone-narrowing-conversions",
         "performance*",
+        "-performance-no-int-to-ptr",
         "clang-analyzer-security*",
         "android-*",
+        "-android-cloexec-fopen",
+        "-android-cloexec-dup",
     ],
     soong_config_variables: {
         drmpp: {

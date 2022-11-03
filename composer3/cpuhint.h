@@ -57,10 +57,10 @@ enum PerfHintStatus {
 };
 
 struct LongTermHintInfo {
-  int handle_id_ = 0;
-  int tid_ = 0;
-  nsecs_t start_time_ = 0;
-  PerfHintStatus status_ = kInactive;
+  int handle_id = 0;
+  int tid = 0;
+  nsecs_t start_time = 0;
+  PerfHintStatus status = kInactive;
 };
 
 class HWCDebugHandler;
@@ -74,9 +74,9 @@ class CPUHint {
   void ReqEvent(int event);
 
  private:
-  const int k_large_composition_ = 0x00001097;
-  const int k_hint_pass_pid_ = 0x0000109C;  // Inform mpctl about the TID
-  const int k_pass_pid_success_ = -2;       // Check if mpctl received the TID
+  const int kLargeComposition = 0x00001097;
+  const int kHintPassPid = 0x0000109C;  // Inform mpctl about the TID
+  const int kPassPidSuccess = -2;       // Check if mpctl received the TID
 
   bool enabled_ = false;
   DynLib vendor_ext_lib_;

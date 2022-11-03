@@ -35,7 +35,6 @@
 #include <core/layer_stack.h>
 #include <core/layer_buffer.h>
 #include <utils/utils.h>
-#include <android/hardware/graphics/composer/2.3/IComposerClient.h>
 
 #include <map>
 #include <set>
@@ -44,8 +43,7 @@
 #include "hwc_buffer_allocator.h"
 #include "hwc_common.h"
 
-using PerFrameMetadataKey =
-    android::hardware::graphics::composer::V2_3::IComposerClient::PerFrameMetadataKey;
+using aidl::android::hardware::graphics::composer3::PerFrameMetadataKey;
 
 namespace sdm {
 

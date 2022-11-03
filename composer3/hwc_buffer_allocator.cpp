@@ -223,7 +223,6 @@ int HWCBufferAllocator::AllocateBuffer(BufferInfo *buffer_info) {
     auto error = gralloc::GetMetaDataValue(hnd, QTI_MEM_HANDLE, &alloc_buffer_info->mem_handle);
     if (error != gralloc::Error::NONE) {
       err = -EINVAL;
-      ;
       goto cleanup;
     }
   }

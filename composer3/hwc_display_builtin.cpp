@@ -56,10 +56,10 @@
 namespace sdm {
 
 static void SetRect(LayerRect &src_rect, GLRect *target) {
-  target->left_ = src_rect.left;
-  target->top_ = src_rect.top;
-  target->right_ = src_rect.right;
-  target->bottom_ = src_rect.bottom;
+  target->left = src_rect.left;
+  target->top = src_rect.top;
+  target->right = src_rect.right;
+  target->bottom = src_rect.bottom;
 }
 
 int HWCDisplayBuiltIn::Create(CoreInterface *core_intf, BufferAllocator *buffer_allocator,
@@ -337,11 +337,11 @@ HWC3::Error HWCDisplayBuiltIn::CommitStitchLayers() {
     // Stitch target doesn't have an input fence.
     // Render all layers at specified destination.
     LayerBuffer &input_buffer = layer->input_buffer;
-    params.src_hnd_ = reinterpret_cast<const native_handle_t *>(input_buffer.buffer_id);
-    params.dst_hnd_ = reinterpret_cast<const native_handle_t *>(output_buffer.buffer_id);
-    SetRect(layer->stitch_info.dst_rect, &params.dst_rect_);
-    SetRect(layer->stitch_info.slice_rect, &params.scissor_rect_);
-    params.src_acquire_fence_ = input_buffer.acquire_fence;
+    params.src_hnd = reinterpret_cast<const native_handle_t *>(input_buffer.buffer_id);
+    params.dst_hnd = reinterpret_cast<const native_handle_t *>(output_buffer.buffer_id);
+    SetRect(layer->stitch_info.dst_rect, &params.dst_rect);
+    SetRect(layer->stitch_info.slice_rect, &params.scissor_rect);
+    params.src_acquire_fence = input_buffer.acquire_fence;
 
     ctx.stitch_params.push_back(params);
   }

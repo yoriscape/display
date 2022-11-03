@@ -457,7 +457,7 @@ ScopedAStatus AidlComposerClient::getReadbackBufferFence(int64_t in_display,
     return TO_BINDER_STATUS(INT32(error));
   }
 
-  *aidl_return = std::move(::ndk::ScopedFileDescriptor(Fence::Dup(fence)));
+  *aidl_return = ::ndk::ScopedFileDescriptor(Fence::Dup(fence));
 
   return TO_BINDER_STATUS(INT32(error));
 }
@@ -603,7 +603,7 @@ ScopedAStatus AidlComposerClient::setReadbackBuffer(
   auto fd = sfd.get();
   *sfd.getR() = -1;
 
-  fence = Fence::Create(dup(fd), "read_back");
+  fence = Fence::Create(fd, "read_back");
 
   {
     std::lock_guard<std::mutex> lock(m_display_data_mutex_);
@@ -612,13 +612,13 @@ ScopedAStatus AidlComposerClient::setReadbackBuffer(
     }
   }
 
-  const native_handle_t *readbackBuffer;
-  auto error = getDisplayReadbackBuffer(in_display, buffer, &readbackBuffer);
+  const native_handle_t *readback_buffer = nullptr;
+  auto error = getDisplayReadbackBuffer(in_display, buffer, &readback_buffer);
   if (error != Error::None) {
     return TO_BINDER_STATUS(INT32(error));
   }
 
-  error = hwc_session_->SetReadbackBuffer(in_display, readbackBuffer, fence);
+  error = hwc_session_->SetReadbackBuffer(in_display, readback_buffer, fence);
   return TO_BINDER_STATUS(INT32(error));
 }
 
@@ -832,7 +832,7 @@ void AidlComposerClient::CommandEngine::executeSetClientTarget(int64_t display,
   auto fd = sfd.get();
   *sfd.getR() = -1;
 
-  fence = Fence::Create(dup(fd), "fbt");
+  fence = Fence::Create(fd, "fbt");
   if (fence == nullptr) {
     ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
     sync_wait(fd, -1);
@@ -878,7 +878,7 @@ void AidlComposerClient::CommandEngine::executeSetOutputBuffer(uint64_t display,
   auto fd = sfd.get();
   *sfd.getR() = -1;
 
-  fence = Fence::Create(dup(fd), "outbuf");
+  fence = Fence::Create(fd, "outbuf");
   if (fence == nullptr) {
     ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
     sync_wait(fd, -1);
@@ -989,11 +989,14 @@ void AidlComposerClient::CommandEngine::executeSetLayerBuffer(int64_t display, i
   bool useCache = !buffer.handle;
   buffer_handle_t layerBuffer = useCache ? nullptr : ::android::makeFromAidl(*buffer.handle);
   shared_ptr<Fence> fence = nullptr;
+  auto &sfd = const_cast<::ndk::ScopedFileDescriptor &>(buffer.fence);
+  auto fd = sfd.get();
+  *sfd.getR() = -1;
 
-  fence = Fence::Create(dup(buffer.fence.get()), "layer");
+  fence = Fence::Create(fd, "layer");
   if (fence == nullptr) {
-    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, buffer.fence.get());
-    sync_wait(buffer.fence.get(), -1);
+    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
+    sync_wait(fd, -1);
   }
 
   auto error = lookupBuffer(display, layer, BufferCache::LAYER_BUFFERS, buffer.slot, useCache,

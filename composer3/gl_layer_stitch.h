@@ -42,13 +42,13 @@
 
 namespace sdm {
 struct StitchParams {
-  const native_handle_t *src_hnd_ = nullptr;
-  const native_handle_t *dst_hnd_ = nullptr;
-  GLRect src_rect_;
-  GLRect dst_rect_;
-  GLRect scissor_rect_;
-  shared_ptr<Fence> src_acquire_fence_ = nullptr;
-  shared_ptr<Fence> dst_acquire_fence_ = nullptr;
+  const native_handle_t *src_hnd = nullptr;
+  const native_handle_t *dst_hnd = nullptr;
+  GLRect src_rect;
+  GLRect dst_rect;
+  GLRect scissor_rect;
+  shared_ptr<Fence> src_acquire_fence = nullptr;
+  shared_ptr<Fence> dst_acquire_fence = nullptr;
 };
 
 class GLLayerStitch {

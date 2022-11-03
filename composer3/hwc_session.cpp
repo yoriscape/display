@@ -1013,7 +1013,7 @@ void HWCSession::RegisterCallback(CallbackCommand descriptor, void *callback_dat
   if (descriptor == CALLBACK_HOTPLUG && callback_fn) {
     if (hwc_display_[HWC_DISPLAY_PRIMARY]) {
       DLOGI("Hotplugging primary...");
-      callbacks_.Hotplug(HWC_DISPLAY_PRIMARY, Connection::Connected);
+      callbacks_.Hotplug(HWC_DISPLAY_PRIMARY, true);
     }
     // Create displays since they should now have their final display indices set.
     DLOGI("Handling built-in displays...");
@@ -1039,7 +1039,7 @@ void HWCSession::RegisterCallback(CallbackCommand descriptor, void *callback_dat
       }
       for (auto client_id : updated_pending_hotplugs) {
         DLOGI("Re-hotplug display connected: client id = %d", UINT32(client_id));
-        callbacks_.Hotplug(client_id, Connection::Connected);
+        callbacks_.Hotplug(client_id, true);
       }
     }
   }
@@ -3028,7 +3028,7 @@ int HWCSession::HandleBuiltInDisplays() {
             UINT32(client_id));
       // Free lock before the callback
       primary_display_lock_.Unlock();
-      callbacks_.Hotplug(client_id, Connection::Connected);
+      callbacks_.Hotplug(client_id, true);
       primary_display_lock_.Lock();
       break;
     }
@@ -3276,7 +3276,7 @@ int HWCSession::HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool d
 
   for (auto client_id : pending_hotplugs) {
     DLOGI("Notify hotplug display connected: client id = %d", UINT32(client_id));
-    callbacks_.Hotplug(client_id, Connection::Connected);
+    callbacks_.Hotplug(client_id, true);
   }
 
   return status;
@@ -3356,7 +3356,7 @@ void HWCSession::DestroyPluggableDisplay(DisplayMapInfo *map_info) {
   Display client_id = map_info->client_id;
 
   DLOGI("Notify hotplug display disconnected: client id = %d", UINT32(client_id));
-  callbacks_.Hotplug(client_id, Connection::Disconnected);
+  callbacks_.Hotplug(client_id, false);
 
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> hwc_lock(command_seq_mutex_);

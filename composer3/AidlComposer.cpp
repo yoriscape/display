@@ -87,6 +87,7 @@ binder_status_t AidlComposer::dump(int fd, const char ** /*args*/, uint32_t /*nu
 ScopedAStatus AidlComposer::getCapabilities(std::vector<Capability> *aidl_return) {
   const std::array<Capability, 3> all_caps = {{
       Capability::SIDEBAND_STREAM, Capability::SKIP_CLIENT_COLOR_TRANSFORM,
+      Capability::SKIP_VALIDATE,
   }};
 
   uint32_t count = 0;

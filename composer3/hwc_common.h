@@ -101,12 +101,6 @@ enum CallbackCommand {
   CALLBACK_VSYNC_IDLE = 7,
 };
 
-enum class Connection : int32_t {
-  Invalid = 0,
-  Connected = 1,
-  Disconnected = 2,
-};
-
 /**
  * Set draw method
  */
