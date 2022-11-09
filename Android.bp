@@ -28,7 +28,7 @@ soong_config_module_type {
 
 soong_config_string_variable {
 	name: "composer_version",
-	values: ["v2", "v3"],
+	values: ["v2", "v3", "qmaa"],
 }
 
 soong_config_module_type {

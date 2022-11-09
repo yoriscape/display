@@ -181,6 +181,7 @@ ifeq ($(TARGET_IS_HEADLESS), true)
     PRODUCT_SOONG_NAMESPACES += hardware/qcom/display/qmaa
     SOONG_CONFIG_qtidisplay_headless := true
     SOONG_CONFIG_qtidisplay_default := false
+	SOONG_CONFIG_qtidisplay_composer_version := qmaa
 else
     #Packages that should not be installed in QMAA are enabled here.
     PRODUCT_PACKAGES += libdrmutils
