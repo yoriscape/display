@@ -100,8 +100,6 @@ struct SDECsc {
 
 struct HWCwbConfig {
   bool enabled = false;
-  int32_t cwb_disp_id = -1;             // set only in CWB setup or CWB teardown frame. Set to
-                                        // display id of the cwb setup/teardown performing display.
   sde_drm::DRMDisplayToken token = {};  // display token to be used for virtual connector while CWB
 };
 
@@ -369,7 +367,7 @@ class HWDeviceDRM : public HWInterface {
   bool has_dedicated_cwb_ = false;  // virtual connector supports dedicated CWB feature.
   uint32_t max_cwb_ = 0;            // Max number of concurrent CWB operations on virtual connector.
   bool has_cwb_dither_ = false;     // virtual connector supports CWB Dither feature.
-  static HWCwbConfig cwb_config_;
+  HWCwbConfig cwb_config_ = {};
   static std::mutex cwb_state_lock_;  // cwb state lock. Set before accesing or updating cwb_config_
   uint32_t transfer_time_updated_ = 0;
 
