@@ -20,7 +20,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -305,6 +305,7 @@ class HWCSession : HWCUEventListener,
   HWC3::Error SetLayerPerFrameMetadataBlobs(Display display, LayerId layer, uint32_t num_elements,
                                             const int32_t *int_keys, const uint32_t *sizes,
                                             const uint8_t *metadata);
+  HWC3::Error SetLayerBrightness(Display display, LayerId layer, float brightness);
   HWC3::Error SetDisplayedContentSamplingEnabled(Display display, bool enabled,
                                                  uint8_t component_mask, uint64_t max_frames);
   HWC3::Error GetDisplayedContentSamplingAttributes(Display display, int32_t *format,
