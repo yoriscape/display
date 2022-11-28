@@ -685,7 +685,7 @@ int32_t HWCSession::getDisplayMaxBrightness(uint32_t display, uint32_t *max_brig
 
 int HWCSession::SetCameraSmoothInfo(CameraSmoothOp op, int32_t fps) {
   std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
-  for (auto const & [ id, callback ] : callback_clients_) {
+  for (auto const &[id, callback] : callback_clients_) {
     if (callback) {
       callback->notifyCameraSmoothInfo(op, fps);
     }
@@ -696,7 +696,7 @@ int HWCSession::SetCameraSmoothInfo(CameraSmoothOp op, int32_t fps) {
 
 int HWCSession::NotifyResolutionChange(int32_t disp_id, Attributes &attr) {
   std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
-  for (auto const & [ id, callback ] : callback_clients_) {
+  for (auto const &[id, callback] : callback_clients_) {
     if (callback) {
       callback->notifyResolutionChange(disp_id, attr);
     }
@@ -896,6 +896,10 @@ int HWCSession::DisplayConfigImpl::IsWCGSupported(uint32_t disp_id, bool *suppor
 }
 
 int HWCSession::DisplayConfigImpl::SetLayerAsMask(uint32_t disp_id, uint64_t layer_id) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   HWCDisplay *hwc_display = hwc_session_->hwc_display_[disp_id];
   if (!hwc_display) {
@@ -1007,6 +1011,10 @@ int HWCSession::DisplayConfigImpl::IsBuiltInDisplay(uint32_t disp_id, bool *is_b
 
 int HWCSession::DisplayConfigImpl::GetSupportedDSIBitClks(uint32_t disp_id,
                                                           std::vector<uint64_t> *bit_clks) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   if (!hwc_session_->hwc_display_[disp_id]) {
     return -EINVAL;
@@ -1017,6 +1025,10 @@ int HWCSession::DisplayConfigImpl::GetSupportedDSIBitClks(uint32_t disp_id,
 }
 
 int HWCSession::DisplayConfigImpl::GetDSIClk(uint32_t disp_id, uint64_t *bit_clk) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   if (!hwc_session_->hwc_display_[disp_id]) {
     return -EINVAL;
@@ -1028,6 +1040,10 @@ int HWCSession::DisplayConfigImpl::GetDSIClk(uint32_t disp_id, uint64_t *bit_clk
 }
 
 int HWCSession::DisplayConfigImpl::SetDSIClk(uint32_t disp_id, uint64_t bit_clk) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   if (!hwc_session_->hwc_display_[disp_id]) {
     return -1;
@@ -1300,6 +1316,10 @@ bool HWCSession::CWB::IsCwbActiveOnDisplay(Display disp_type) {
 }
 
 int HWCSession::DisplayConfigImpl::SetQsyncMode(uint32_t disp_id, DisplayConfig::QsyncMode mode) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SEQUENCE_WAIT_SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   if (!hwc_session_->hwc_display_[disp_id]) {
     return -1;
@@ -1328,6 +1348,10 @@ int HWCSession::DisplayConfigImpl::SetQsyncMode(uint32_t disp_id, DisplayConfig:
 
 int HWCSession::DisplayConfigImpl::IsSmartPanelConfig(uint32_t disp_id, uint32_t config_id,
                                                       bool *is_smart) {
+  if (disp_id < 0 || disp_id >= HWCCallbacks::kNumDisplays) {
+    DLOGE("Not valid display");
+    return -EINVAL;
+  }
   SCOPE_LOCK(hwc_session_->locker_[disp_id]);
   if (!hwc_session_->hwc_display_[disp_id]) {
     DLOGE("Display %d is not created yet.", disp_id);
@@ -1533,7 +1557,8 @@ int HWCSession::DisplayConfigImpl::AllowIdleFallback() {
   if (hwc_session_->hwc_display_[HWC_DISPLAY_PRIMARY]) {
     DLOGI("enable idle time active_ms:%d inactive_ms:%d", active_ms, inactive_ms);
     hwc_session_->hwc_display_[HWC_DISPLAY_PRIMARY]->SetIdleTimeoutMs(active_ms, inactive_ms);
-    hwc_session_->is_idle_time_up_ = true;
+    hwc_session_->is_client_up_ = true;
+    hwc_session_->hwc_display_[HWC_DISPLAY_PRIMARY]->MarkClientActive(true);
     hwc_session_->idle_time_inactive_ms_ = inactive_ms;
     hwc_session_->idle_time_active_ms_ = active_ms;
     return 0;

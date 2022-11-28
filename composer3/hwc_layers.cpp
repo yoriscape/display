@@ -48,11 +48,11 @@ DisplayError SetCSC(const native_handle_t *handle, ColorMetaData *color_metadata
   auto error =
       gralloc::GetMetaDataValue(hnd, qtigralloc::MetadataType_ColorMetadata.value, color_metadata);
 
-  if (error == gralloc::Error::NONE) {
+  if (error != gralloc::Error::NONE) {
     int csc = HAL_CSC_ITU_R_601;
     error = gralloc::GetMetaDataValue(hnd, qtigralloc::MetadataType_ColorSpace.value, &csc);
 
-    if (error != gralloc::Error::NONE) {
+    if (error == gralloc::Error::NONE) {
       if (csc == HAL_CSC_ITU_R_601_FR || csc == HAL_CSC_ITU_R_709_FR ||
           csc == HAL_CSC_ITU_R_2020_FR) {
         color_metadata->range = Range_Full;
