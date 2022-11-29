@@ -24,6 +24,13 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 #include <utils/constants.h>
 #include <utils/debug.h>
 #include <private/hw_interface.h>
@@ -51,9 +58,12 @@ DisplayVirtual::DisplayVirtual(int32_t display_id, DisplayEventHandler *event_ha
 DisplayError DisplayVirtual::Init() {
   ClientLock lock(disp_mutex_);
 
-  DisplayError error = HWInterface::Create(display_id_, kVirtual, hw_info_intf_,
-                                           buffer_allocator_, &hw_intf_);
+  DisplayError error = comp_manager_->AllocateVirtualDisplayId(&display_id_);
+  if (error != kErrorNone) {
+    return error;
+  }
 
+  error = HWInterface::Create(display_id_, kVirtual, hw_info_intf_, buffer_allocator_, &hw_intf_);
   if (error != kErrorNone) {
     return error;
   }
@@ -73,6 +83,14 @@ DisplayError DisplayVirtual::Init() {
     DisplayBase::SetMaxMixerStages(max_mixer_stages);
   }
 
+  return error;
+}
+
+DisplayError DisplayVirtual::Deinit() {
+  auto error = DisplayBase::Deinit();
+  if (display_id_ != -1) {
+    comp_manager_->DeallocateVirtualDisplayId(display_id_);
+  }
   return error;
 }
 
