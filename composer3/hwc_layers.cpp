@@ -684,16 +684,16 @@ HWC3::Error HWCLayer::SetLayerZOrder(uint32_t z) {
 HWC3::Error HWCLayer::SetLayerType(LayerType type) {
   LayerTypes layer_type = kLayerUnknown;
   switch (type) {
-    case LayerType::kUnknown:
+    case LayerType::UNKNOWN:
       layer_type = kLayerUnknown;
       break;
-    case LayerType::kApp:
+    case LayerType::APP:
       layer_type = kLayerApp;
       break;
-    case LayerType::kGame:
+    case LayerType::GAME:
       layer_type = kLayerGame;
       break;
-    case LayerType::kBrowser:
+    case LayerType::BROWSER:
       layer_type = kLayerBrowser;
       break;
     default:
@@ -706,7 +706,7 @@ HWC3::Error HWCLayer::SetLayerType(LayerType type) {
 }
 
 HWC3::Error HWCLayer::SetLayerFlag(LayerFlag flag) {
-  compatible_ = (flag == LayerFlag::kCompatible);
+  compatible_ = (flag == LayerFlag::COMPATIBLE);
 
   return HWC3::Error::None;
 }

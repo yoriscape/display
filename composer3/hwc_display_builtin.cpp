@@ -194,7 +194,7 @@ int HWCDisplayBuiltIn::Init() {
 
   LoadMixedModePerfHintThreshold();
 
-  HWCDisplay::TryDrawMethod(DrawMethod::kUnifiedDraw);
+  HWCDisplay::TryDrawMethod(DrawMethod::UNIFIED_DRAW);
 
   return status;
 }

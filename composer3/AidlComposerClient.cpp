@@ -217,6 +217,18 @@ ScopedAStatus AidlComposerClient::executeCommands(const std::vector<DisplayComma
   return TO_BINDER_STATUS(INT32(error));
 }
 
+ScopedAStatus AidlComposerClient::executeQtiCommands(
+    const std::vector<QtiDisplayCommand> &in_commands,
+    std::vector<CommandResultPayload> *aidl_return) {
+  std::lock_guard<std::mutex> lock(m_command_mutex_);
+
+  std::lock_guard<std::mutex> hwc_lock(hwc_session_->command_seq_mutex_);
+
+  Error error = mCommandEngine->qtiExecute(in_commands, aidl_return);
+
+  return TO_BINDER_STATUS(INT32(error));
+}
+
 ScopedAStatus AidlComposerClient::getActiveConfig(int64_t in_display, int32_t *aidl_return) {
   uint32_t config = 0;
   auto error = hwc_session_->GetActiveConfig(in_display, &config);
@@ -417,6 +429,25 @@ ScopedAStatus AidlComposerClient::getMaxVirtualDisplayCount(int32_t *aidl_return
   *aidl_return = hwc_session_->GetMaxVirtualDisplayCount();
 
   return ScopedAStatus::ok();
+}
+
+ScopedAStatus AidlComposerClient::getOverlaySupport(OverlayProperties *aidl_return) {
+  return TO_BINDER_STATUS(INT32(Error::Unsupported));
+}
+
+ScopedAStatus AidlComposerClient::getHdrConversionCapabilities(
+    std::vector<HdrConversionCapability> *_aidl_return) {
+  return TO_BINDER_STATUS(INT32(Error::Unsupported));
+}
+
+ScopedAStatus AidlComposerClient::setHdrConversionStrategy(
+    const HdrConversionStrategy &in_conversionStrategy, Hdr *_aidl_return) {
+  return TO_BINDER_STATUS(INT32(Error::Unsupported));
+}
+
+ScopedAStatus AidlComposerClient::setRefreshRateChangedCallbackDebugEnabled(int64_t in_display,
+                                                                            bool in_enabled) {
+  return TO_BINDER_STATUS(INT32(Error::Unsupported));
 }
 
 ScopedAStatus AidlComposerClient::getPerFrameMetadataKeys(
@@ -826,7 +857,34 @@ Error AidlComposerClient::CommandEngine::execute(const std::vector<DisplayComman
   }
 
   if (!mCommandIndex) {
-    ALOGE("%s: No command found", __FUNCTION__);
+    ALOGW("%s: No command found", __FUNCTION__);
+  }
+
+  *result = mWriter->getPendingCommandResults();
+  reset();
+
+  return (mCommandIndex) ? Error::None : Error::BadParameter;
+}
+
+Error AidlComposerClient::CommandEngine::qtiExecute(const std::vector<QtiDisplayCommand> &commands,
+                                                    std::vector<CommandResultPayload> *result) {
+  for (const auto &displayCmd : commands) {
+    for (const auto &layerCmd : displayCmd.qtiLayers) {
+      ExecuteCommand(layerCmd.qtiLayerType, &CommandEngine::executeSetLayerType, displayCmd.display,
+                     layerCmd.layer, layerCmd.qtiLayerType);
+      ExecuteCommand(layerCmd.qtiLayerFlags, &CommandEngine::executeSetLayerFlag,
+                     displayCmd.display, layerCmd.layer, layerCmd.qtiLayerFlags);
+    }
+    ExecuteCommand(displayCmd.clientTarget_3_1, &CommandEngine::executeSetClientTarget_3_1,
+                   displayCmd.display, *displayCmd.clientTarget_3_1);
+    ExecuteCommand(displayCmd.time, &CommandEngine::executeSetDisplayElapseTime, displayCmd.display,
+                   displayCmd.time);
+
+    ++mCommandIndex;
+  }
+
+  if (!mCommandIndex) {
+    ALOGW("%s: No command found", __FUNCTION__);
   }
 
   *result = mWriter->getPendingCommandResults();
@@ -967,8 +1025,8 @@ void AidlComposerClient::CommandEngine::executePresentOrValidateDisplay(
       if (error == Error::None) {
         mClient.hwc_session_->AcceptDisplayChanges(display);
       }
-      // Set result to Validated.
-      mWriter->setPresentOrValidateResult(display, PresentOrValidate::Result::Validated);
+      // Set result to validated, has comp changes
+      mWriter->setPresentOrValidateResult(display, static_cast<PresentOrValidate::Result>(2));
     } else {
       // Set result to Presented.
       mWriter->setPresentOrValidateResult(display, PresentOrValidate::Result::Presented);
@@ -1349,59 +1407,61 @@ Error AidlComposerClient::CommandEngine::postValidateDisplay(int64_t display, ui
 }
 
 // TODO: Re-add extensions API
-// void AidlComposerClient::CommandEngine::parseSetLayerType(uint16_t length) {
-//   if (length != CommandWriter::kSetLayerTypeLength) {
-//     return false;
-//   }
+void AidlComposerClient::CommandEngine::executeSetClientTarget_3_1(int64_t display,
+                                                                   const ClientTarget &command) {
+  bool useCache = true;
+  buffer_handle_t clientTarget = nullptr;
+  shared_ptr<Fence> fence = nullptr;
+  auto &sfd = const_cast<::ndk::ScopedFileDescriptor &>(command.buffer.fence);
+  auto fd = sfd.get();
+  *sfd.getR() = -1;
 
-//   auto err = mClient.hwc_session_->SetLayerType(display, layer,
-//             static_cast<IAidlComposerClient::LayerType>(read()));
-//   if (static_cast<Error>(err) != Error::None) {
-//     mWriter->setError(getCommandLoc(), static_cast<Error>(err));
-//   }
+  fence = Fence::Create(fd, "fbt");
+  if (fence == nullptr) {
+    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
+    sync_wait(fd, -1);
+  }
 
-//
-// }
+  sdm::Region region = {};
+  auto err = lookupBuffer(display, -1, BufferCache::CLIENT_TARGETS, command.buffer.slot, useCache,
+                          clientTarget, &clientTarget);
+  if (err == Error::None) {
+    err = mClient.hwc_session_->SetClientTarget_3_1(display, clientTarget, fence,
+                                                    INT32(command.dataspace), region);
+    auto updateBufErr = updateBuffer(display, -1, BufferCache::CLIENT_TARGETS, command.buffer.slot,
+                                     useCache, clientTarget);
+    if (err == Error::None) {
+      err = updateBufErr;
+    }
+  }
+  if (err != Error::None) {
+    writeError(__FUNCTION__, err);
+  }
+}
 
-// void AidlComposerClient::CommandEngine::parseSetLayerFlag(uint16_t length) {
-//   if (length != CommandWriter::kSetLayerFlagLength) {
-//     return false;
-//   }
+void AidlComposerClient::CommandEngine::executeSetDisplayElapseTime(int64_t display,
+                                                                    uint64_t time) {
+  auto err = mClient.hwc_session_->SetDisplayElapseTime(display, time);
+  if (err != Error::None) {
+    writeError(__FUNCTION__, err);
+  }
+}
 
-//   auto err = mClient.hwc_session_->SetLayerFlag(display, layer,
-//                                                 static_cast<IAidlComposerClient::LayerFlag>(read()));
-//   if (static_cast<Error>(err) != Error::None) {
-//      mWriter->setError(getCommandLoc(), static_cast<Error>(err));
-//   }
+void AidlComposerClient::CommandEngine::executeSetLayerType(int64_t display, int64_t layer,
+                                                            sdm::LayerType type) {
+  auto err = mClient.hwc_session_->SetLayerType(display, layer, type);
+  if (err != Error::None) {
+    writeError(__FUNCTION__, err);
+  }
+}
 
-//
-// }
-
-// void AidlComposerClient::CommandEngine::parseSetLayerFloatColor(uint16_t length) {
-//   if (length != CommandWriter::kSetLayerFloatColorLength) {
-//     return false;
-//   }
-
-//   // setLayerFloatColor is not supported
-//   auto err = Error::Unsupported;
-//   mWriter->setError(getCommandLoc(), static_cast<Error>(err));
-
-//
-// }
-
-// void AidlComposerClient::CommandEngine::parseSetDisplayElapseTime(uint16_t length) {
-//   if (length < CommandWriter::kSetDisplayElapseTime) {
-//     return false;
-//   }
-//   uint64_t time = read64();
-
-//   auto err = mClient.hwc_session_->SetDisplayElapseTime(display, time);
-//   if (static_cast<Error>(err) != Error::None) {
-//     mWriter->setError(getCommandLoc(), static_cast<Error>(err));
-//   }
-
-//
-// }
+void AidlComposerClient::CommandEngine::executeSetLayerFlag(int64_t display, int64_t layer,
+                                                            sdm::LayerFlag flag) {
+  auto err = mClient.hwc_session_->SetLayerFlag(display, layer, flag);
+  if (err != Error::None) {
+    writeError(__FUNCTION__, err);
+  }
+}
 
 Error AidlComposerClient::CommandEngine::lookupBufferCacheEntryLocked(
     int64_t display, int64_t layer, BufferCache cache, uint32_t slot, BufferCacheEntry **outEntry) {

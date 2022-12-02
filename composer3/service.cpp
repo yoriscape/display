@@ -39,13 +39,15 @@
 
 #include "DisplayConfigAIDL.h"
 #include "AidlComposer.h"
+#include "QtiComposer3Client.h"
 
+using aidl::vendor::qti::hardware::display::composer3::AidlComposer;
+using aidl::vendor::qti::hardware::display::composer3::QtiComposer3Client;
 using aidl::vendor::qti::hardware::display::config::DisplayConfigAIDL;
 using android::ProcessState;
 using android::sp;
 using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
-using aidl::vendor::qti::hardware::display::composer3::AidlComposer;
 
 int main(int, char **) {
   ALOGI("Creating Display HW Composer HAL");
@@ -72,13 +74,27 @@ int main(int, char **) {
   ALOGI("Configuring RPC threadpool...done!");
 
   ALOGI("Registering AidlComposer as a service");
-  std::shared_ptr<AidlComposer> composer = ndk::SharedRefBase::make<AidlComposer>();
+  ABinderProcess_setThreadPoolMaxThreadCount(0);
+  ALOGI("Creating AidlComposer extensions(QtiComposer3Client) service");
+  std::shared_ptr<QtiComposer3Client> qticomposer = ndk::SharedRefBase::make<QtiComposer3Client>();
+  std::shared_ptr<AidlComposer> composer = ndk::SharedRefBase::make<AidlComposer>(qticomposer);
   const std::string instance = std::string() + AidlComposer::descriptor + "/default";
   if (!composer->asBinder().get()) {
     ALOGW("AidlComposer's binder is null");
   }
-  binder_status_t status = AServiceManager_addService(composer->asBinder().get(), instance.c_str());
 
+  ndk::SpAIBinder composerBinder = composer->asBinder();
+  ALOGI("Registering QtiComposer3Client as an AidlComposer extension service");
+  binder_status_t status =
+      AIBinder_setExtension(composerBinder.get(), qticomposer->asBinder().get());
+  if (status != STATUS_OK) {
+    ALOGW("Failed to register QtiComposer3Client as an AidlComposer extension service (status:%d)",
+          status);
+  } else {
+    ALOGI("Successfully registered QtiComposer3Client as an AidlComposer extension service");
+  }
+
+  status = AServiceManager_addService(composerBinder.get(), instance.c_str());
   if (status != STATUS_OK) {
     ALOGW("Failed to register AidlComposer as a service (status:%d)", status);
   } else {
