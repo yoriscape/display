@@ -4363,11 +4363,9 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
   for (auto &info : map_info) {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
     if (hwc_display_[info.client_id]) {
-      if (info.client_id == target_display) {
-        continue;
-      }
-      if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionPrepare,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionPrepare, &needs_refresh,
+                                                          info.client_id == target_display) !=
+                                                          kErrorNone) {
         return -EINVAL;
       }
     }
@@ -4411,8 +4409,8 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
     if (hwc_display_[target_display]) {
-      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionStart,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionStart, &needs_refresh,
+                                                          false) != kErrorNone) {
         return -EINVAL;
       }
       uint32_t config = 0;
@@ -4472,8 +4470,8 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
     hwc_display_[target_display]->SetIdleTimeoutMs(idle_time_active_ms_, idle_time_inactive_ms_);
     hwc_display_[target_display]->SetQSyncMode(hwc_display_qsync_[target_display]);
     if (hwc_display_[target_display]) {
-      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionEnd,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionEnd, &needs_refresh,
+                                                          false) != kErrorNone) {
         return -EINVAL;
       }
     } else {
@@ -4528,14 +4526,12 @@ android::status_t HWCSession::TUITransitionUnPrepare(int disp_id) {
     {
       SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
       if (hwc_display_[info.client_id]) {
-        if (info.client_id == target_display) {
-          continue;
-        }
         if (info.disp_type == kPluggable && pending_hotplug_event_ == kHotPlugEvent) {
           continue;
         }
-        if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionUnPrepare,
-                                                            &needs_refresh) != kErrorNone) {
+        if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionUnPrepare, &needs_refresh,
+                                                            info.client_id == target_display) !=
+                                                            kErrorNone) {
           return -EINVAL;
         }
       }
