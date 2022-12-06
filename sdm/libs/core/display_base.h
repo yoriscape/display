@@ -54,6 +54,7 @@
 #include <condition_variable>  // NOLINT
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "comp_manager.h"
 #include "color_manager.h"
@@ -255,6 +256,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
   virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
+  virtual void ResetDispLayerStack();
 
  protected:
   struct DisplayMutex {
@@ -362,7 +364,11 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   bool active_ = false;
   Handle hw_device_ = 0;
   Handle display_comp_ctx_ = 0;
-  DispLayerStack disp_layer_stack_;
+  DispLayerStack *disp_layer_stack_;
+  static constexpr size_t kDispStackCount = 2;
+  DispLayerStack disp_layer_stacks_[kDispStackCount];
+  std::atomic<bool> clearstack_;
+  uint8_t disp_stack_index_ = 0;
   bool needs_validate_ = true;  // maintains validation state between Prepare/Commit Cycle
   bool vsync_enable_ = false;
   uint32_t max_mixer_stages_ = 0;
