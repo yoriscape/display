@@ -238,7 +238,7 @@ ScopedAStatus AidlComposerClient::getColorModes(int64_t in_display,
   aidl_return->resize(count);
   error = hwc_session_->GetColorModes(
       in_display, &count,
-      reinterpret_cast<std::underlying_type<ColorMode>::type *>(*aidl_return->data()));
+      reinterpret_cast<std::underlying_type<ColorMode>::type *>(aidl_return->data()));
   return TO_BINDER_STATUS(INT32(error));
 }
 
