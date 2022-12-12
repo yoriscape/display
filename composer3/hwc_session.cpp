@@ -4115,7 +4115,7 @@ HWC3::Error HWCSession::SetActiveConfigWithConstraints(
 }
 
 int HWCSession::WaitForCommitDoneAsync(hwc2_display_t display, int client_id) {
-  std::chrono::milliseconds span(5000);
+  std::chrono::milliseconds span(2000);
   if (commit_done_future_[display].valid()) {
     std::future_status status = commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
     if (status != std::future_status::ready) {
@@ -4397,7 +4397,7 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
 
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
-    int ret = WaitForCommitDone(target_display, kClientTrustedUI);
+    int ret = WaitForCommitDoneAsync(target_display, kClientTrustedUI);
     if (ret != 0) {
       if (ret != -ETIMEDOUT) {
         DLOGE("Device unassign failed with error %d", ret);
