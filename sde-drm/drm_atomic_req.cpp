@@ -123,7 +123,12 @@ int DRMAtomicReq::Perform(DRMOps opcode, uint32_t obj_id, ...) {
     case DRMOps::PLANE_SET_FP16_CSC_CONFIG:
     case DRMOps::PLANE_SET_FP16_IGC_CONFIG:
     case DRMOps::PLANE_SET_FP16_UNMULT_CONFIG:
-    case DRMOps::PLANE_SET_FP16_GC_CONFIG: {
+    case DRMOps::PLANE_SET_FP16_GC_CONFIG:
+    case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG:
+    case DRMOps::PLANE_SET_UCSC_IGC_CONFIG:
+    case DRMOps::PLANE_SET_UCSC_CSC_CONFIG:
+    case DRMOps::PLANE_SET_UCSC_GC_CONFIG:
+    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG: {
       drm_mgr_->GetPlaneMgr()->Perform(opcode, obj_id, drm_atomic_req_, args);
     } break;
     case DRMOps::CRTC_SET_POST_PROC:

@@ -99,6 +99,10 @@ class DRMPlane {
   bool SetFp16GcConfig(drmModeAtomicReq *req, drm_msm_fp16_gc *fp16_gc_config);
   void UnsetFp16CscConfig();
   void UnsetFp16GcConfig();
+#ifdef UCSC_SUPPORTED
+  void SetUcscCscConfig(drmModeAtomicReq *req, drm_msm_ucsc_csc *ucsc_csc_config);
+  void UnsetUcscCscConfig();
+#endif
 
  private:
   typedef std::map<DRMProperty, std::tuple<uint64_t, drmModePropertyRes *>> PropertyMap;
@@ -130,11 +134,15 @@ class DRMPlane {
   DRMPlaneLutState dgm_1d_lut_gc_state_ = kInactive;
   DRMPlaneLutState vig_1d_lut_igc_state_ = kInactive;
   DRMPlaneLutState vig_3d_lut_gamut_state_ = kInactive;
-  // FP16 properties
+
+  // FP16 / UCSC properties
   uint32_t fp16_csc_blob_id_ = 0;
   DRMFp16CscType fp16_csc_type_ = kFP16CscTypeMax;
   uint32_t fp16_gc_blob_id_ = 0;
   drm_msm_fp16_gc fp16_gc_config_ = {.flags = 0, .mode = FP16_GC_MODE_INVALID};
+#ifdef UCSC_SUPPORTED
+  uint32_t ucsc_csc_blob_id_ = 0;
+#endif
 };
 
 class DRMPlaneManager {

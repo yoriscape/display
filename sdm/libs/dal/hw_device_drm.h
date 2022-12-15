@@ -258,6 +258,13 @@ class HWDeviceDRM : public HWInterface {
   void SetTopology(sde_drm::DRMTopology drm_topology, HWTopology *hw_topology);
   void SetMultiRectMode(const uint32_t flags, sde_drm::DRMMultiRectMode *target);
   void SetSsppTonemapFeatures(HWPipeInfo *pipe_info);
+  void SetLegacyTonemapFeatures(HWPipeInfo *pipe_info);
+#ifdef UCSC_SUPPORTED
+  void SetUcscTonemapFeatures(HWPipeInfo *pipe_info);
+  void SetUcscIgc(const HWUcscIgcMode igc_lut_sel, sde_drm::DRMUcscIgcMode *igc);
+  void SetUcscGc(const HWUcscGcMode gc_lut_sel, sde_drm::DRMUcscGcMode *gc);
+  void SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc);
+#endif
   void SetDGMCsc(const HWPipeCscInfo &dgm_csc_info, SDECsc *csc);
   void SetDGMCscV1(const HWCsc &dgm_csc, sde_drm_csc_v1 *csc_v1);
   void SetSsppLutFeatures(HWPipeInfo *pipe_info);

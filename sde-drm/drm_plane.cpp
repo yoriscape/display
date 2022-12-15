@@ -241,6 +241,21 @@ static uint8_t PREMULTIPLIED = 2;
 static uint8_t COVERAGE = 3;
 static uint8_t SKIP_BLENDING = 4;
 
+// UCSC IGC modes
+static uint8_t UCSC_IGC_DISABLE = 0;
+static uint8_t UCSC_IGC_SRGB = 1;
+static uint8_t UCSC_IGC_REC709 = 2;
+static uint8_t UCSC_IGC_GAMMA2_2 = 3;
+static uint8_t UCSC_IGC_HLG = 4;
+static uint8_t UCSC_IGC_PQ = 5;
+
+// UCSC GC modes
+static uint8_t UCSC_GC_DISABLE = 0;
+static uint8_t UCSC_GC_SRGB = 1;
+static uint8_t UCSC_GC_PQ = 2;
+static uint8_t UCSC_GC_GAMMA2_2 = 3;
+static uint8_t UCSC_GC_HLG = 4;
+
 static void SetRect(DRMRect &source, drm_clip_rect *target) {
   target->x1 = uint16_t(source.left);
   target->y1 = uint16_t(source.top);
@@ -389,6 +404,54 @@ static bool GetDRMonemapLutTypeFromPPFeatureID(DRMPPFeatureID id, DRMTonemapLutT
       return false;
   }
   return true;
+}
+
+static void PopulateUcscIgcMode(drmModePropertyRes *prop) {
+  static bool ucsc_igc_populated = false;
+  if (!ucsc_igc_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "disable") {
+        UCSC_IGC_DISABLE = prop->enums[i].value;
+      } else if (enum_name == "srgb") {
+        UCSC_IGC_SRGB = prop->enums[i].value;
+      } else if (enum_name == "rec709") {
+        UCSC_IGC_REC709 = prop->enums[i].value;
+      } else if (enum_name == "gamma2_2") {
+        UCSC_IGC_GAMMA2_2 = prop->enums[i].value;
+      } else if (enum_name == "hlg") {
+        UCSC_IGC_HLG = prop->enums[i].value;
+      } else if (enum_name == "pq") {
+        UCSC_IGC_PQ = prop->enums[i].value;
+      } else {
+        DRM_LOGE("Unknown IGC mode - %s", enum_name.c_str());
+      }
+    }
+    ucsc_igc_populated = true;
+  }
+}
+
+static void PopulateUcscGcMode(drmModePropertyRes *prop) {
+  static bool ucsc_gc_populated = false;
+  if (!ucsc_gc_populated) {
+    for (auto i = 0; i < prop->count_enums; i++) {
+      string enum_name(prop->enums[i].name);
+      if (enum_name == "disable") {
+        UCSC_GC_DISABLE = prop->enums[i].value;
+      } else if (enum_name == "srgb") {
+        UCSC_GC_SRGB = prop->enums[i].value;
+      } else if (enum_name == "pq") {
+        UCSC_GC_PQ = prop->enums[i].value;
+      } else if (enum_name == "gamma2_2") {
+        UCSC_GC_GAMMA2_2 = prop->enums[i].value;
+      } else if (enum_name == "hlg") {
+        UCSC_GC_HLG = prop->enums[i].value;
+      } else {
+        DRM_LOGE("Unknown GC mode - %s", enum_name.c_str());
+      }
+    }
+    ucsc_gc_populated = true;
+  }
 }
 
 DRMPlaneManager::DRMPlaneManager(int fd) : fd_(fd) {}
@@ -776,6 +839,10 @@ void DRMPlane::ParseProperties() {
       plane_type_info_.multirect_prop_present = true;
     } else if (prop_enum == DRMProperty::BLEND_OP) {
       PopulateBlendType(info);
+    } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_IGC_V1) {
+      PopulateUcscIgcMode(info);
+    } else if (prop_enum == DRMProperty::SDE_SSPP_UCSC_GC_V1) {
+      PopulateUcscGcMode(info);
     }
 
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
@@ -816,6 +883,36 @@ void DRMPlane::ParseProperties() {
         (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V6) {
       plane_type_info_.tonemap_lut_version_map[DRMTonemapLutType::VIG_3D_GAMUT] =
           ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_VIG_3D_LUT_GAMUT_V5 + 5);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_UNMULT] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_UNMULT_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_IGC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_IGC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_CSC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_CSC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_GC] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_GC_V1 + 1);
+    }
+
+    if ((uint32_t)prop_enum >= (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1 &&
+        (uint32_t)prop_enum <= (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1) {
+      plane_type_info_.ucsc_block_version_map[DRMUcscBlockType::UCSC_ALPHA_DITHER] =
+          ((uint32_t)prop_enum - (uint32_t)DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1 + 1);
     }
   }
 
@@ -1015,6 +1112,35 @@ void DRMPlane::UnsetFp16GcConfig() {
     fp16_gc_blob_id_ = 0;
   }
 }
+
+#ifdef UCSC_SUPPORTED
+void DRMPlane::SetUcscCscConfig(drmModeAtomicReq *req, drm_msm_ucsc_csc *ucsc_csc_config) {
+  uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_CSC_V1);
+  if (!prop_id) {
+    return;
+  }
+
+  UnsetUcscCscConfig();
+
+  if (ucsc_csc_config == nullptr) {
+    AddProperty(req, drm_plane_->plane_id, prop_id, 0, false /* cache */, tmp_prop_val_map_);
+    DRM_LOGD("Plane %d: Resetting UCSC CSC", drm_plane_->plane_id);
+  } else {
+    drmModeCreatePropertyBlob(fd_, reinterpret_cast<void *>(ucsc_csc_config),
+                              sizeof(drm_msm_ucsc_csc), &ucsc_csc_blob_id_);
+    AddProperty(req, drm_plane_->plane_id, prop_id, ucsc_csc_blob_id_, false /* cache */,
+                tmp_prop_val_map_);
+    DRM_LOGD("Plane %d: Setting UCSC CSC", drm_plane_->plane_id);
+  }
+}
+
+void DRMPlane::UnsetUcscCscConfig() {
+  if (ucsc_csc_blob_id_) {
+    drmModeDestroyPropertyBlob(fd_, ucsc_csc_blob_id_);
+    ucsc_csc_blob_id_ = 0;
+  }
+}
+#endif
 
 bool DRMPlane::SetScalerConfig(drmModeAtomicReq *req, uint64_t handle) {
   if (plane_type_info_.type != DRMPlaneType::VIG) {
@@ -1343,6 +1469,107 @@ void DRMPlane::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       uint32_t config = va_arg(args, uint32_t);
       SetFp16UnmultConfig(req, config);
     } break;
+
+#ifdef UCSC_SUPPORTED
+    case DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_UNMULT_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      uint32_t ucsc_unmult = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_id, ucsc_unmult, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC UNMULT", obj_id, ucsc_unmult ? "Setting" : "Resetting");
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_IGC_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_IGC_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      DRMUcscIgcMode ucsc_igc = va_arg(args, DRMUcscIgcMode);
+      uint32_t igc = UCSC_IGC_DISABLE;
+      switch (ucsc_igc) {
+        case DRMUcscIgcMode::UCSC_IGC_MODE_SRGB:
+          igc = UCSC_IGC_SRGB;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_REC709:
+          igc = UCSC_IGC_REC709;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_GAMMA2_2:
+          igc = UCSC_IGC_GAMMA2_2;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_HLG:
+          igc = UCSC_IGC_HLG;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_PQ:
+          igc = UCSC_IGC_PQ;
+          break;
+        case DRMUcscIgcMode::UCSC_IGC_MODE_DISABLE:
+          igc = UCSC_IGC_DISABLE;
+          break;
+        default:
+          DRM_LOGE("Invalid igc mode %d to set on plane %d", ucsc_igc, obj_id);
+          break;
+      }
+
+      AddProperty(req, obj_id, prop_id, igc, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC IGC - %d", obj_id,
+               (igc == UCSC_IGC_DISABLE) ? "Resetting" : "Setting", igc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_CSC_CONFIG: {
+      drm_msm_ucsc_csc *ucsc_csc = va_arg(args, drm_msm_ucsc_csc *);
+      SetUcscCscConfig(req, ucsc_csc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_GC_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_GC_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      DRMUcscGcMode ucsc_gc = va_arg(args, DRMUcscGcMode);
+      uint32_t gc = UCSC_GC_DISABLE;
+      switch (ucsc_gc) {
+        case DRMUcscGcMode::UCSC_GC_MODE_SRGB:
+          gc = UCSC_GC_SRGB;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_PQ:
+          gc = UCSC_GC_PQ;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_GAMMA2_2:
+          gc = UCSC_GC_GAMMA2_2;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_HLG:
+          gc = UCSC_GC_HLG;
+          break;
+        case DRMUcscGcMode::UCSC_GC_MODE_DISABLE:
+          gc = UCSC_GC_DISABLE;
+          break;
+        default:
+          DRM_LOGE("Invalid gc mode %d to set on plane %d", ucsc_gc, obj_id);
+          break;
+      }
+
+      AddProperty(req, obj_id, prop_id, gc, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC GC - %d", obj_id,
+               (gc == UCSC_GC_DISABLE) ? "Resetting" : "Setting", gc);
+    } break;
+
+    case DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG: {
+      prop_id = prop_mgr_.GetPropertyId(DRMProperty::SDE_SSPP_UCSC_ALPHA_DITHER_V1);
+      if (!prop_id) {
+        return;
+      }
+
+      uint32_t ucsc_alpha_dither = va_arg(args, uint32_t);
+      AddProperty(req, obj_id, prop_id, ucsc_alpha_dither, true /* cache */, tmp_prop_val_map_);
+      DRM_LOGD("Plane %d: %s UCSC ALPHA DITHER", obj_id,
+               ucsc_alpha_dither ? "Setting" : "Resetting");
+    } break;
+#endif
 
     default:
       DRM_LOGE("Invalid opcode %d for DRM Plane %d", code, obj_id);

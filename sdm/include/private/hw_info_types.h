@@ -94,6 +94,12 @@ const int kMaxSDELayers = 16;   // Maximum number of layers that can be handled 
 #define MAX_CSC_CLAMP_SIZE          6
 #define MAX_CSC_BIAS_SIZE           3
 
+// FP16 / UCSC Max Size
+#define FP16_CSC_CFG0_PARAM_LEN     12
+#define FP16_CSC_CFG1_PARAM_LEN     8
+#define UCSC_CSC_CFG0_PARAM_LEN     FP16_CSC_CFG0_PARAM_LEN
+#define UCSC_CSC_CFG1_PARAM_LEN     FP16_CSC_CFG1_PARAM_LEN
+
 #define MAX_SPLIT_COUNT             2
 
 enum HWDeviceType {
@@ -164,8 +170,9 @@ enum HWPipeFlags {
   kInterlaced = 1 << 10,
   kUpdating = 1 < 11,
   kSolidFill = 1 << 12,
-  kTonemap1d = 1 << 13,
-  kTonemap3d = 1 << 14,
+  kTonemap1d = 1 << 13,  // legacy tonemap flag - DMA
+  kTonemap3d = 1 << 14,  // 3d gamut flag - VIG
+  kUCSC = 1 << 15,       // UCSC tonemap flag - DMA & VIG
 };
 
 enum HWAVRModes {
@@ -218,8 +225,10 @@ enum HwColorspace {
 
 enum HWSrcTonemap {
   kSrcTonemapNone,
-  kSrcTonemap1d,  // DMA
-  kSrcTonemap3d,  // VIG
+  kSrcTonemap1d,      // legacy DMA tonemap
+  kSrcTonemap3d,      // 3d gamut tonemap - VIG
+  kSrcTonemapUcsc,    // UCSC tonemap - DMA & VIG
+  kSrcTonemapUcsc3d,  // UCSC + 3d gamut tonemap - VIG
 };
 
 enum HWToneMapLut {
@@ -228,6 +237,30 @@ enum HWToneMapLut {
   kDma1dGc,     // DMA GC Lut
   kVig1dIgc,    // VIG IGC Lut
   kVig3dGamut,  // 3D Gamut Lut
+};
+
+enum HWUcscBlockType {
+  kUcscUnmult,       // UCSC UNMULT
+  kUcscIgc,          // UCSC IGC
+  kUcscCsc,          // UCSC CSC
+  kUcscGc,           // UCSC GC
+  kUcscAlphaDither,  // UCSC ALPHA DITHER
+  kUcscBlockMax,
+};
+
+enum HWUcscGcMode {
+  kUcscGcModeSrgb,      // SRGB
+  kUcscGcModePq,        // PQ
+  kUcscGcModeGamma2_2,  // GAMMA2.2
+  kUcscGcModeHlg,       // HLG
+};
+
+enum HWUcscIgcMode {
+  kUcscIgcModeSrgb,      // SRGB
+  kUcscIgcModeRec709,    // REC709
+  kUcscIgcModeGamma2_2,  // GAMMA2.2
+  kUcscIgcModeHlg,       // HLG
+  kUcscIgcModePq,        // PQ
 };
 
 enum HWWriteOperation {
@@ -286,6 +319,7 @@ struct HWPipeCaps {
   bool inverse_pma = 0;
   uint32_t dgm_csc_version = 0;
   std::map<HWToneMapLut, uint32_t> tm_lut_version_map = {};
+  std::map<HWUcscBlockType, uint32_t> ucsc_block_version_map = {};
   bool block_sec_ui = false;
   int32_t cont_splash_disp_id = -1;
   SplashType splash_type = kSplashNone;
@@ -631,6 +665,14 @@ struct HWCsc {
   uint32_t post_clamp[MAX_CSC_CLAMP_SIZE] = {0};
 };
 
+struct HWUcscCsc {
+  uint64_t flags = 0;
+  uint32_t cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
+  uint32_t cfg_param_0[UCSC_CSC_CFG0_PARAM_LEN] = {0};
+  uint32_t cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
+  uint32_t cfg_param_1[UCSC_CSC_CFG1_PARAM_LEN] = {0};
+};
+
 struct HWScaleData {
   struct enable {
     uint8_t scale = 0;
@@ -705,6 +747,17 @@ struct HWPipeTonemapInversePma {
   bool inverse_pma = false;
 };
 
+struct HWPipeUcscConfig {
+  uint8_t unmult_en = 0;
+  uint8_t igc_en = 0;
+  HWUcscIgcMode igc_lut_sel = kUcscIgcModeSrgb;
+  uint8_t csc_en = 0;
+  HWUcscCsc csc = {};
+  uint8_t gc_en = 0;
+  HWUcscGcMode gc_lut_sel = kUcscGcModeSrgb;
+  uint8_t alpha_dither_en = 0;
+};
+
 struct HWPipeInfo {
   HWPipeInfo *pair = NULL;
   uint8_t rect = 255;
@@ -723,6 +776,8 @@ struct HWPipeInfo {
   HWPipeTonemapInversePma inverse_pma_info = {};
   HWPipeCscInfo dgm_csc_info = {};
   std::vector<HWPipeTonemapLutInfo> lut_info = {};
+  HWPipeUcscConfig ucsc_config = {};
+  std::map<HWUcscBlockType, HWWriteOperation> ucsc_write_op = {};
   LayerTransform transform;
   HWSrcTonemap tonemap = kSrcTonemapNone;
   LayerBufferFormat format = kFormatARGB8888;  // src format of the buffer
