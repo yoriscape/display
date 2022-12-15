@@ -88,7 +88,7 @@ DisplayError CompManager::Init(const HWResourceInfo &hw_res_info,
     extension_intf->CreateCwbManagerExtn(this, &cwb_mgr_intf_);
     error = extension_intf->CreateResourceExtn(hw_res_info, buffer_allocator, &resource_intf_);
     extension_intf->CreateDppsControlExtn(&dpps_ctrl_intf_, socket_handler);
-    extension_intf->CreateCapabilitiesExtn(&cap_intf_);
+    extension_intf->CreateCapabilitiesExtn(hw_res_info, &cap_intf_);
   } else {
     error = ResourceDefault::CreateResourceDefault(hw_res_info, &resource_intf_);
   }

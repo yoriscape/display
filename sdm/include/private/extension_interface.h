@@ -86,7 +86,8 @@ class ExtensionInterface {
   virtual DisplayError DumpCodeCoverage() = 0;
 #endif
 
-  virtual DisplayError CreateCapabilitiesExtn(CapabilitiesInterface **interface) = 0;
+  virtual DisplayError CreateCapabilitiesExtn(const HWResourceInfo &hw_res_info,
+                                              CapabilitiesInterface **interface) = 0;
   virtual DisplayError DestroyCapabilitiesExtn(CapabilitiesInterface *interface) = 0;
 
   virtual DisplayError CreateCwbManagerExtn(CwbCallback *callback,
