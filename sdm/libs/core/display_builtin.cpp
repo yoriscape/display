@@ -2604,6 +2604,7 @@ DisplayError DisplayBuiltIn::PostHandleSecureEvent(SecureEvent secure_event) {
     if (vm_cb_intf_) {
       vm_cb_intf_->FreeExportBuffer();
     }
+    comp_manager_->PostHandleSecureEvent(display_comp_ctx_, secure_event);
   }
   return kErrorNone;
 }
