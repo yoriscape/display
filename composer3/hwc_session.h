@@ -685,13 +685,12 @@ class HWCSession : HWCUEventListener,
   bool tui_state_transition_[HWCCallbacks::kNumDisplays] = {};
   std::bitset<HWCCallbacks::kNumDisplays> display_ready_;
   bool secure_session_active_ = false;
-  bool is_idle_time_up_ = false;
+  bool is_client_up_ = false;
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   bool primary_pending_ = true;
   Locker primary_display_lock_;
   std::map<Display, sdm::DisplayType> map_active_displays_;
   vector<HWDisplayInfo> virtual_display_list_ = {};
-  bool tui_start_success_ = false;
   std::future<int> commit_done_future_;
 };
 }  // namespace sdm
