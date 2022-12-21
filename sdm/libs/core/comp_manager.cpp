@@ -782,11 +782,18 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
   if (secure_event == kTUITransitionEnd) {
     resource_intf_->Perform(ResourceInterface::kCmdResetLUT,
                             display_comp_ctx->display_resource_ctx);
-    resource_intf_->HandleTUITransition(false);
     safe_mode_ = false;
   }
   safe_mode_ = (secure_event == kTUITransitionStart) ? true : safe_mode_;
   secure_event_ = secure_event;
+}
+
+void CompManager::PostHandleSecureEvent(Handle display_ctx, SecureEvent secure_event) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+  if (secure_event == kSecureDisplayEnd) {
+    resource_intf_->HandleTUITransition(false);
+    secure_event_ = kSecureEventMax;
+  }
 }
 
 void CompManager::UpdateStrategyConstraints(bool is_primary, bool disabled) {
