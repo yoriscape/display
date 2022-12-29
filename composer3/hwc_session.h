@@ -612,7 +612,6 @@ class HWCSession : HWCUEventListener,
   Display GetActiveBuiltinDisplay();
   void HandlePendingRefresh();
   void NotifyClientStatus(bool connected);
-  int32_t GetVirtualDisplayId(HWDisplayInfo &info);
   android::status_t TUITransitionPrepare(int disp_id);
   android::status_t TUITransitionStart(int disp_id);
   android::status_t TUITransitionEnd(int disp_id);
@@ -627,7 +626,6 @@ class HWCSession : HWCUEventListener,
   void NotifyDisplayAttributes(Display display, Config config);
   int WaitForVmRelease(Display display, int timeout_ms);
   void GetVirtualDisplayList();
-  HWC3::Error CheckWbAvailability();
   bool IsHWDisplayConnected(Display client_id);
 
   CoreInterface *core_intf_ = nullptr;

@@ -18,40 +18,40 @@
  */
 
 /*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the
+ * disclaimer below) provided that the following conditions are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *
+ *    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include <QService.h>
 #include <binder/Parcel.h>
@@ -681,16 +681,6 @@ int32_t HWCSession::DestroyVirtualDisplay(hwc2_display_t display) {
   }
 
   return HWC2_ERROR_NONE;
-}
-
-int32_t HWCSession::GetVirtualDisplayId(HWDisplayInfo& info) {
-  for (auto& map_info : map_info_virtual_) {
-    if (map_info.sdm_id == info.display_id) {
-      return -1;
-    }
-  }
-
-  return info.display_id;
 }
 
 void HWCSession::Dump(uint32_t *out_size, char *out_buffer) {
@@ -1454,42 +1444,6 @@ void HWCSession::GetVirtualDisplayList() {
   }
 }
 
-HWC2::Error HWCSession::CheckWbAvailability() {
-  uint32_t max_wbs = virtual_display_list_.size();
-  uint32_t cwb_count = 0;
-  uint32_t vd_count = 0;
-
-  for (hwc2_display_t display = HWC_DISPLAY_PRIMARY;
-        display < HWCCallbacks::kNumDisplays; display++) {
-    if (cwb_.IsCwbActiveOnDisplay(display)) {
-      cwb_count++;
-    }
-  }
-
-  if (cwb_count >= max_wbs) {
-    goto end;
-  }
-
-  for (auto& vds_map : virtual_id_map_) {
-    if (vds_map.second.in_use) {
-      vd_count++;
-    }
-  }
-
-  if (vd_count >= max_wbs) {
-    goto end;
-  }
-
-  if (cwb_count + vd_count >= max_wbs) {
-    goto end;
-  }
-
-  return HWC2::Error::None;
-end:
-  DLOGW("No wb available, max: %d, cwb: %d, wfd: %d", max_wbs, cwb_count, vd_count);
-  return HWC2::Error::Unsupported;
-}
-
 HWC2::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height, int32_t *format,
                                                 hwc2_display_t *out_display_id) {
   // Get virtual display from cache if already created
@@ -1524,19 +1478,11 @@ HWC2::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height,
     }
   }
 
-  // check if wb hw is available
-  auto err = CheckWbAvailability();
-  if (err != HWC2::Error::None) {
-    for (auto display : {HWC_DISPLAY_EXTERNAL, HWC_DISPLAY_PRIMARY}) {
-      if (!cwb_.IsCwbActiveOnDisplay(display)) {
-        continue;
-      }
-
-      err = TeardownConcurrentWriteback(display);
-      if (err != HWC2::Error::None) {
-        return err;
-      }
-    }
+  // Request to get virtual display id corresponds writeback block, which could be used for WFD.
+  int32_t display_id = -1;
+  auto err = core_intf_->RequestVirtualDisplayId(&display_id);
+  if (err != kErrorNone || display_id == -1) {
+    return HWC2::Error::NoResources;
   }
 
   // Lock confined to this scope
@@ -1549,22 +1495,10 @@ HWC2::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height,
         continue;
       }
 
-      int32_t display_id = -1;
       int status = -EINVAL;
-      for (auto &vdl : virtual_display_list_) {
-        display_id = GetVirtualDisplayId(vdl);
-        if (display_id == -1) {
-          continue;
-        }
-
-        status = virtual_display_factory_.Create(core_intf_, &buffer_allocator_, &callbacks_,
-                                                 client_id, display_id, width, height,
-                                                 format, set_min_lum_, set_max_lum_, &hwc_display);
-        if (!status) {
-          break;
-        }
-      }
-
+      status = virtual_display_factory_.Create(core_intf_, &buffer_allocator_, &callbacks_,
+                                               client_id, display_id, width, height, format,
+                                               set_min_lum_, set_max_lum_, &hwc_display);
       if (display_id == -1 || status) {
         return HWC2::Error::NoResources;
       }

@@ -642,16 +642,6 @@ HWC3::Error HWCSession::DestroyVirtualDisplay(Display display) {
   return HWC3::Error::None;
 }
 
-int32_t HWCSession::GetVirtualDisplayId(HWDisplayInfo &info) {
-  for (auto &map_info : map_info_virtual_) {
-    if (map_info.sdm_id == info.display_id) {
-      return -1;
-    }
-  }
-
-  return info.display_id;
-}
-
 void HWCSession::Dump(uint32_t *out_size, char *out_buffer) {
   if (!out_size) {
     return;
@@ -1414,41 +1404,6 @@ void HWCSession::GetVirtualDisplayList() {
   }
 }
 
-HWC3::Error HWCSession::CheckWbAvailability() {
-  uint32_t max_wbs = virtual_display_list_.size();
-  uint32_t cwb_count = 0;
-  uint32_t vd_count = 0;
-
-  for (Display display = HWC_DISPLAY_PRIMARY; display < HWCCallbacks::kNumDisplays; display++) {
-    if (cwb_.IsCwbActiveOnDisplay(display)) {
-      cwb_count++;
-    }
-  }
-
-  if (cwb_count >= max_wbs) {
-    goto end;
-  }
-
-  for (auto &vds_map : virtual_id_map_) {
-    if (vds_map.second.in_use) {
-      vd_count++;
-    }
-  }
-
-  if (vd_count >= max_wbs) {
-    goto end;
-  }
-
-  if (cwb_count + vd_count >= max_wbs) {
-    goto end;
-  }
-
-  return HWC3::Error::None;
-end:
-  DLOGW("No wb available, max: %d, cwb: %d, wfd: %d", max_wbs, cwb_count, vd_count);
-  return HWC3::Error::Unsupported;
-}
-
 HWC3::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height, int32_t *format,
                                                 Display *out_display_id) {
   // Get virtual display from cache if already created
@@ -1481,19 +1436,11 @@ HWC3::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height,
     }
   }
 
-  // check if wb hw is available
-  auto err = CheckWbAvailability();
-  if (err != HWC3::Error::None) {
-    for (auto display : {HWC_DISPLAY_EXTERNAL, HWC_DISPLAY_PRIMARY}) {
-      if (!cwb_.IsCwbActiveOnDisplay(display)) {
-        continue;
-      }
-
-      err = TeardownConcurrentWriteback(display);
-      if (err != HWC3::Error::None) {
-        return err;
-      }
-    }
+  // Request to get virtual display id corresponds writeback block, which could be used for WFD.
+  int32_t display_id = -1;
+  auto err = core_intf_->RequestVirtualDisplayId(&display_id);
+  if (err != kErrorNone || display_id == -1) {
+    return HWC3::Error::NoResources;
   }
 
   // Lock confined to this scope
@@ -1506,22 +1453,10 @@ HWC3::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height,
         continue;
       }
 
-      int32_t display_id = -1;
       int status = -EINVAL;
-      for (auto &vdl : virtual_display_list_) {
-        display_id = GetVirtualDisplayId(vdl);
-        if (display_id == -1) {
-          continue;
-        }
-
-        status = virtual_display_factory_.Create(core_intf_, &buffer_allocator_, &callbacks_,
-                                                 client_id, display_id, width, height, format,
-                                                 set_min_lum_, set_max_lum_, &hwc_display);
-        if (!status) {
-          break;
-        }
-      }
-
+      status = virtual_display_factory_.Create(core_intf_, &buffer_allocator_, &callbacks_,
+                                               client_id, display_id, width, height, format,
+                                               set_min_lum_, set_max_lum_, &hwc_display);
       if (display_id == -1 || status) {
         return HWC3::Error::NoResources;
       }

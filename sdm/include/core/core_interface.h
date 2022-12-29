@@ -297,6 +297,19 @@ class CoreInterface {
   */
   virtual DisplayError ReserveDemuraResources() = 0;
 
+  /*! @brief Method to request to get virtual display ID (h/w writeback block ID).
+
+    @details Client shall use this method to get virtual display ID (h/w writeback block ID),
+    if it is available, else it could be available after tearing down any lower priority usage
+    writeback block out of existing usage. And it makes sure that tearing down usage has lower
+    priority than requesting usage.
+
+    @param[out] vdisp_id Virtual Display ID for DPU based virtual display.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id) = 0;
+
  protected:
   virtual ~CoreInterface() { }
 };
