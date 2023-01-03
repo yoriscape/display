@@ -4135,21 +4135,21 @@ HWC3::Error HWCSession::SetActiveConfigWithConstraints(
 
 int HWCSession::WaitForCommitDoneAsync(hwc2_display_t display, int client_id) {
   std::chrono::milliseconds span(5000);
-  if (commit_done_future_.valid()) {
-    std::future_status status = commit_done_future_.wait_for(std::chrono::milliseconds(0));
+  if (commit_done_future_[display].valid()) {
+    std::future_status status = commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
     if (status != std::future_status::ready) {
       // Previous task is stuck. Bail out early.
       return -ETIMEDOUT;
     }
   }
 
-  commit_done_future_ =
+  commit_done_future_[display] =
       std::async([](HWCSession *session, hwc2_display_t display,
                     int client_id) { return session->WaitForCommitDone(display, client_id); },
                  this, display, client_id);
-  auto ret = (commit_done_future_.wait_for(span) == std::future_status::timeout)
+  auto ret = (commit_done_future_[display].wait_for(span) == std::future_status::timeout)
                  ? -EINVAL
-                 : commit_done_future_.get();
+                 : commit_done_future_[display].get();
   return ret;
 }
 
@@ -4383,7 +4383,10 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
     DLOGI("Waiting for device unassign");
     int ret = WaitForCommitDone(target_display, kClientTrustedUI);
     if (ret != 0) {
-      DLOGE("Device unassign failed with error %d", ret);
+      if (ret != -ETIMEDOUT) {
+        DLOGE("Device unassign failed with error %d", ret);
+      }
+      TUITransitionUnPrepare(disp_id);
       return -EINVAL;
     }
   }
