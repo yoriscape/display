@@ -20,7 +20,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -229,6 +229,8 @@ class HWCSession : HWCUEventListener,
   HWC3::Error SetColorModeWithRenderIntent(Display display, int32_t /*ColorMode*/ int_mode,
                                            int32_t /*RenderIntent*/ int_render_intent);
   HWC3::Error SetColorTransform(Display display, const std::vector<float> &matrix);
+  HWC3::Error getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
+                                          AlphaInterpretation *alpha);
   HWC3::Error GetReadbackBufferAttributes(Display display, int32_t *format, int32_t *dataspace);
   HWC3::Error SetReadbackBuffer(Display display, const native_handle_t *buffer,
                                 const shared_ptr<Fence> &acquire_fence);
