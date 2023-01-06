@@ -363,7 +363,6 @@ class HWCDisplay : public DisplayEventHandler {
   virtual HWC3::Error SetCursorPosition(LayerId layer, int x, int y);
   virtual HWC3::Error SetVsyncEnabled(bool enabled);
   virtual HWC3::Error SetPowerMode(PowerMode mode, bool teardown);
-  virtual HWC3::Error UpdatePowerMode(PowerMode mode) { return HWC3::Error::None; }
   virtual HWC3::Error CreateLayer(LayerId *out_layer_id);
   virtual HWC3::Error DestroyLayer(LayerId layer_id);
   virtual HWC3::Error SetLayerZOrder(LayerId layer_id, uint32_t z);
@@ -617,7 +616,6 @@ class HWCDisplay : public DisplayEventHandler {
   Config pending_first_commit_config_index_ = 0;
   bool game_supported_ = false;
   uint64_t elapse_timestamp_ = 0;
-  int async_power_mode_ = 0;
   bool draw_method_set_ = false;
   bool validate_done_ = false;
   bool client_target_3_1_set_ = false;

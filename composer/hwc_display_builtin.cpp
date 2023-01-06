@@ -1117,11 +1117,6 @@ HWC3::Error HWCDisplayBuiltIn::SetBLScale(uint32_t level) {
   return HWC3::Error::None;
 }
 
-HWC3::Error HWCDisplayBuiltIn::UpdatePowerMode(PowerMode mode) {
-  current_power_mode_ = mode;
-  return HWC3::Error::None;
-}
-
 HWC3::Error HWCDisplayBuiltIn::SetClientTarget(buffer_handle_t target,
                                                shared_ptr<Fence> acquire_fence, int32_t dataspace,
                                                Region damage) {

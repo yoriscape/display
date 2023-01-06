@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -62,7 +62,6 @@ class HWCDisplayPluggable : public HWCDisplay {
   virtual HWC3::Error SetColorMode(ColorMode mode);
   virtual HWC3::Error SetColorModeWithRenderIntent(ColorMode mode, RenderIntent intent);
   virtual HWC3::Error SetColorTransform(const float *matrix, android_color_transform_t hint);
-  virtual HWC3::Error UpdatePowerMode(PowerMode mode);
   virtual HWC3::Error PreValidateDisplay(bool *exit_validate);
   virtual HWC3::Error PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence);
 

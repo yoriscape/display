@@ -124,7 +124,6 @@ class HWCDisplayBuiltIn : public HWCDisplay, public SyncTask<LayerStitchTaskCode
   virtual HWC3::Error GetPanelMaxBrightness(uint32_t *max_brightness_level);
   virtual HWC3::Error SetFrameTriggerMode(uint32_t mode);
   virtual HWC3::Error SetBLScale(uint32_t level);
-  virtual HWC3::Error UpdatePowerMode(PowerMode mode);
   virtual HWC3::Error SetClientTarget(buffer_handle_t target, shared_ptr<Fence> acquire_fence,
                                       int32_t dataspace, Region damage);
   virtual bool IsSmartPanelConfig(uint32_t config_id);

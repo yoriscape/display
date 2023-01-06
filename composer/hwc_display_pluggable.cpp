@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -372,11 +372,6 @@ HWC3::Error HWCDisplayPluggable::SetColorModeWithRenderIntent(ColorMode mode, Re
   callbacks_->Refresh(id_);
 
   return status;
-}
-
-HWC3::Error HWCDisplayPluggable::UpdatePowerMode(PowerMode mode) {
-  current_power_mode_ = mode;
-  return HWC3::Error::None;
 }
 
 HWC3::Error HWCDisplayPluggable::SetColorTransform(const float *matrix,
