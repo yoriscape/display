@@ -494,7 +494,6 @@ class HWCSession : public HWCUEvent,
 
   void ResetPanel();
   void InitSupportedDisplaySlots();
-  void InitSupportedNullDisplaySlots();
   int GetDisplayIndex(int dpy);
   int CreatePrimaryDisplay();
   int HandleBuiltInDisplays();
@@ -637,7 +636,6 @@ class HWCSession : public HWCUEvent,
   bool is_composer_up_ = false;
   std::mutex mutex_lum_;
   static bool pending_power_mode_[HWCCallbacks::kNumDisplays];
-  static int null_display_mode_;
   HotPlugEvent pending_hotplug_event_ = kHotPlugNone;
 
   struct VirtualDisplayData {

@@ -78,7 +78,6 @@ int HWCSession::commit_error_[HWCCallbacks::kNumDisplays] = {0};
 Locker HWCSession::display_config_locker_;
 std::mutex HWCSession::command_seq_mutex_;
 static const int kSolidFillDelay = 100 * 1000;
-int HWCSession::null_display_mode_ = 0;
 static const uint32_t kBrightnessScaleMax = 100;
 static const uint32_t kSvBlScaleMax = 65535;
 Locker HWCSession::vm_release_locker_[HWCCallbacks::kNumDisplays];
@@ -262,8 +261,6 @@ int HWCSession::Init() {
     HWCDebugHandler::DebugAll(value, value);
   }
 
-  HWCDebugHandler::Get()->GetProperty(ENABLE_NULL_DISPLAY_PROP, &null_display_mode_);
-  DLOGI("null_display_mode_: %d", null_display_mode_);
   HWCDebugHandler::Get()->GetProperty(DISABLE_HOTPLUG_BWCHECK, &disable_hotplug_bwcheck_);
   DLOGI("disable_hotplug_bwcheck_: %d", disable_hotplug_bwcheck_);
   HWCDebugHandler::Get()->GetProperty(DISABLE_MASK_LAYER_HINT, &disable_mask_layer_hint_);
@@ -297,12 +294,12 @@ int HWCSession::Init() {
     if (color_mgr_) {
       color_mgr_->DestroyColorManager();
     }
-    if (!null_display_mode_) {
-      DisplayError error = CoreInterface::DestroyCore();
-      if (error != kErrorNone) {
-        DLOGE("Display core de-initialization failed. Error = %d", error);
-      }
+
+    DisplayError error = CoreInterface::DestroyCore();
+    if (error != kErrorNone) {
+      DLOGE("Display core de-initialization failed. Error = %d", error);
     }
+
     return status;
   } else {
     DLOGI("Creating the Primary display...done!");
@@ -320,10 +317,6 @@ int HWCSession::Init() {
 }
 
 void HWCSession::HpdInit() {
-  if (null_display_mode_) {
-    return;
-  }
-
   hpd_thread_ = std::thread(&HWCSession::HpdThreadBottom, this);
 
   // Top thread should be detached as it uses uevent_next_event()
@@ -332,10 +325,6 @@ void HWCSession::HpdInit() {
 }
 
 void HWCSession::HpdDeinit() {
-  if (null_display_mode_) {
-    return;
-  }
-
   if (hpd_thread_.joinable()) {
     hpd_thread_should_terminate_ = true;
     hpd_cv_.notify_one();
@@ -344,10 +333,6 @@ void HWCSession::HpdDeinit() {
 }
 
 void HWCSession::PostInit() {
-  if (null_display_mode_) {
-    return;
-  }
-
   // Start services which need IDisplayConfig to be up.
   // This avoids deadlock between composer and its clients.
   auto hwc_display = hwc_display_[HWC_DISPLAY_PRIMARY];
@@ -376,11 +361,9 @@ int HWCSession::Deinit() {
     color_mgr_->DestroyColorManager();
   }
 
-  if (!null_display_mode_) {
-    DisplayError error = CoreInterface::DestroyCore();
-    if (error != kErrorNone) {
-      DLOGE("Display core de-initialization failed. Error = %d", error);
-    }
+  DisplayError error = CoreInterface::DestroyCore();
+  if (error != kErrorNone) {
+    DLOGE("Display core de-initialization failed. Error = %d", error);
   }
 
   SCOPE_LOCK(primary_display_lock_);
@@ -399,11 +382,6 @@ void HWCSession::InitSupportedDisplaySlots() {
   // It need not align with hwccomposer_defs
 
   map_info_primary_.client_id = qdutils::DISPLAY_PRIMARY;
-
-  if (null_display_mode_) {
-    InitSupportedNullDisplaySlots();
-    return;
-  }
 
   ipc_intf_ = std::make_shared<IPCImpl>(IPCImpl());
   ipc_intf_->Init();
@@ -484,17 +462,6 @@ void HWCSession::InitSupportedDisplaySlots() {
   is_hdr_display_.resize(UINT32(base_id));
 }
 
-void HWCSession::InitSupportedNullDisplaySlots() {
-  if (!null_display_mode_) {
-    DLOGE("Should only be invoked during null display");
-    return;
-  }
-
-  map_info_primary_.client_id = 0;
-  // Resize HDR supported map to total number of displays
-  is_hdr_display_.resize(1);
-}
-
 int HWCSession::GetDisplayIndex(int dpy) {
   DisplayMapInfo *map_info = nullptr;
   switch (dpy) {
@@ -570,10 +537,6 @@ HWC3::Error HWCSession::CreateVirtualDisplay(uint32_t width, uint32_t height, in
 
   if (!out_display_id || !width || !height || !format) {
     return HWC3::Error::BadParameter;
-  }
-
-  if (null_display_mode_) {
-    return HWC3::Error::None;
   }
 
   auto status = CreateVirtualDisplayObj(width, height, format, out_display_id);
@@ -1194,10 +1157,6 @@ HWC3::Error HWCSession::SetOutputBuffer(Display display, buffer_handle_t buffer,
 }
 
 HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
-  if (null_display_mode_) {
-    return HWC3::Error::None;
-  }
-
   if (display >= HWCCallbacks::kNumDisplays || !hwc_display_[display]) {
     return HWC3::Error::BadDisplay;
   }
@@ -1329,11 +1288,6 @@ HWC3::Error HWCSession::GetDozeSupport(Display display, int32_t *out_support) {
 }
 
 void HWCSession::GetVirtualDisplayList() {
-  if (null_display_mode_) {
-    DLOGI("In null display mode, skip handling of virtual displays list");
-    return;
-  }
-
   HWDisplaysInfo hw_displays_info = {};
   core_intf_->GetDisplaysStatus(&hw_displays_info);
 
@@ -2850,20 +2804,10 @@ int HWCSession::CreatePrimaryDisplay() {
   int status = -EINVAL;
   HWDisplaysInfo hw_displays_info = {};
 
-  if (null_display_mode_) {
-    HWDisplayInfo hw_info = {};
-    hw_info.display_type = kBuiltIn;
-    hw_info.is_connected = 1;
-    hw_info.is_primary = 1;
-    hw_info.is_wb_ubwc_supported = 0;
-    hw_info.display_id = 1;
-    hw_displays_info[hw_info.display_id] = hw_info;
-  } else {
-    DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
-    if (error != kErrorNone) {
-      DLOGE("Failed to get connected display list. Error = %d", error);
-      return status;
-    }
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to get connected display list. Error = %d", error);
+    return status;
   }
 
   SCOPE_LOCK(primary_display_lock_);
@@ -2938,11 +2882,6 @@ int HWCSession::CreatePrimaryDisplay() {
 }
 
 int HWCSession::HandleBuiltInDisplays() {
-  if (null_display_mode_) {
-    DLOGW("Skipped BuiltIn display handling in null-display mode");
-    return 0;
-  }
-
   SCOPE_LOCK(primary_display_lock_);
   while (primary_pending_) {
     primary_display_lock_.Wait();
@@ -3048,11 +2987,6 @@ bool HWCSession::IsHWDisplayConnected(Display client_id) {
 
 int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
   SCOPE_LOCK(pluggable_handler_lock_);
-  if (null_display_mode_) {
-    DLOGW("Skipped pluggable display handling in null-display mode");
-    return 0;
-  }
-
   hwc2_display_t virtual_display_index = (hwc2_display_t)GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
   std::bitset<kSecureMax> secure_sessions = 0;
 
