@@ -273,7 +273,6 @@ class HWCDisplay : public DisplayEventHandler {
   virtual int GetSupportedDisplayRefreshRates(std::vector<uint32_t> *supported_refresh_rates);
   bool IsModeSwitchAllowed(uint32_t config);
 
-  virtual int SetState(bool connected) { return kErrorNotSupported; }
   virtual DisplayError Flush() { return kErrorNotSupported; }
 
   uint32_t GetMaxRefreshRate() { return max_refresh_rate_; }

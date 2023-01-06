@@ -181,25 +181,6 @@ class DisplayNull : public DisplayInterface {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD1};
 };
 
-class DisplayNullExternal : public DisplayNull {
- public:
-  virtual DisplayError Commit(LayerStack *layer_stack);
-  virtual DisplayError GetDisplayState(DisplayState *state);
-  virtual DisplayError SetDisplayState(DisplayState state, bool teardown,
-                                       shared_ptr<Fence> *release_fence);
-  virtual DisplayError SetFrameBufferConfig(const DisplayConfigVariableInfo &variable_info);
-  virtual DisplayError GetFrameBufferConfig(DisplayConfigVariableInfo *variable_info);
-  virtual DisplayError GetDisplayIdentificationData(uint8_t *out_port, uint32_t *out_data_size,
-                                                    uint8_t *out_data);
-  void SetActive(bool active) { active_ = active; }
-  bool IsActive() { return active_; }
-
- private:
-  bool active_ = false;
-  DisplayState state_ = kStateOff;
-  DisplayConfigVariableInfo fb_config_ = {};
-};
-
 }  // namespace sdm
 
 #endif  // __DISPLAY_NULL_H__
