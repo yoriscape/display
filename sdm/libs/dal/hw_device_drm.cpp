@@ -148,6 +148,8 @@ using sde_drm::DRMCscType;
 using sde_drm::DRMMultiRectMode;
 using sde_drm::DRMCrtcInfo;
 using sde_drm::DRMCWbCaptureMode;
+using sde_drm::DRMUcscIgcMode;
+using sde_drm::DRMUcscGcMode;
 
 namespace sdm {
 
@@ -1476,13 +1478,32 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           DRMBlendType blending = DRMBlendType::UNDEFINED;
           LayerBlending layer_blend = layer.blending;
           if (layer_blend == kBlendingPremultiplied) {
-            // If blending type is premultiplied alpha and FP16 unmult is enabled,
-            // prevent performing alpha unmultiply twice
+            // If blending type is premultiplied alpha, prevent performing alpha unmultiply
+            // multiple times for INV PMA / FP16 / UCSC blocks
             if (fp16_unmult_en) {
               layer_blend = kBlendingCoverage;
               pipe_info->inverse_pma_info.inverse_pma = false;
               pipe_info->inverse_pma_info.op = kReset;
+              if (pipe_info->ucsc_config.unmult_en) {
+                pipe_info->ucsc_write_op[kUcscUnmult] = kReset;
+                pipe_info->ucsc_config.unmult_en = 0;
+              }
               DLOGI_IF(kTagDriverConfig, "PMA handled by FP16 UNMULT block - Pipe id: %u", pipe_id);
+            } else if (pipe_info->ucsc_config.unmult_en) {
+              layer_blend = kBlendingCoverage;
+              if (pipe_info->inverse_pma_info.inverse_pma && (pipe_info->lut_info.size() > 0)) {
+                // Inverse PMA set along with 3d gamut takes precedence over UCSC
+                pipe_info->ucsc_write_op[kUcscUnmult] = kReset;
+                pipe_info->ucsc_config.unmult_en = 0;
+                DLOGI_IF(kTagDriverConfig, "PMA handled by Inverse PMA block - Pipe id: %u",
+                         pipe_id);
+              } else {
+                // Inverse PMA set by color transform needs to be reset as it is handled by UCSC
+                pipe_info->inverse_pma_info.inverse_pma = false;
+                pipe_info->inverse_pma_info.op = kReset;
+                DLOGI_IF(kTagDriverConfig, "PMA handled by UCSC UNMULT block - Pipe id: %u",
+                         pipe_id);
+              }
             } else if (pipe_info->inverse_pma_info.inverse_pma) {
               layer_blend = kBlendingCoverage;
               DLOGI_IF(kTagDriverConfig, "PMA handled by Inverse PMA block - Pipe id: %u", pipe_id);
@@ -2578,6 +2599,24 @@ void HWDeviceDRM::SetMultiRectMode(const uint32_t flags, DRMMultiRectMode *targe
 }
 
 void HWDeviceDRM::SetSsppTonemapFeatures(HWPipeInfo *pipe_info) {
+  SetSsppLutFeatures(pipe_info);
+
+#ifdef UCSC_SUPPORTED
+  if (pipe_info->ucsc_write_op.size() > 0) {
+    SetUcscTonemapFeatures(pipe_info);
+    // inverse pma needs to be set / reset for VIG since luts require legacy block
+    if (pipe_info->sub_block_type == kHWVIGPipe) {
+      SetLegacyTonemapFeatures(pipe_info);
+    }
+    return;
+  }
+#endif
+
+  // sets legacy DGM CSC and inverse pma
+  SetLegacyTonemapFeatures(pipe_info);
+}
+
+void HWDeviceDRM::SetLegacyTonemapFeatures(HWPipeInfo *pipe_info) {
   if (pipe_info->dgm_csc_info.op != kNoOp) {
     SDECsc csc = {};
     SetDGMCsc(pipe_info->dgm_csc_info, &csc);
@@ -2592,8 +2631,127 @@ void HWDeviceDRM::SetSsppTonemapFeatures(HWPipeInfo *pipe_info) {
     drm_atomic_intf_->Perform(DRMOps::PLANE_SET_INVERSE_PMA, pipe_info->pipe_id,
                              (pipe_info->inverse_pma_info.inverse_pma) ? 1: 0);
   }
-  SetSsppLutFeatures(pipe_info);
 }
+
+#ifdef UCSC_SUPPORTED
+void HWDeviceDRM::SetUcscTonemapFeatures(HWPipeInfo *pipe_info) {
+  for (auto &it : pipe_info->ucsc_write_op) {
+    switch (it.first) {
+      case kUcscUnmult:
+        if (it.second != kNoOp) {
+          DLOGV_IF(kTagDriverConfig, "Call Perform UCSC UNMULT Op = %s, display: %d-%d",
+                   (it.second == kSet) ? "Set" : "Reset", display_id_, disp_type_);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_UCSC_UNMULT_CONFIG, pipe_info->pipe_id,
+                                    pipe_info->ucsc_config.unmult_en);
+        }
+        break;
+      case kUcscIgc:
+        if (it.second != kNoOp) {
+          DRMUcscIgcMode igc = DRMUcscIgcMode::UCSC_IGC_MODE_DISABLE;
+          if (it.second == kSet) {
+            SetUcscIgc(pipe_info->ucsc_config.igc_lut_sel, &igc);
+          }
+          DLOGV_IF(kTagDriverConfig, "Call Perform UCSC IGC Op = %s, display: %d-%d",
+                   (it.second == kSet) ? "Set" : "Reset", display_id_, disp_type_);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_UCSC_IGC_CONFIG, pipe_info->pipe_id, igc);
+        }
+        break;
+      case kUcscCsc:
+        if (it.second != kNoOp) {
+          drm_msm_ucsc_csc csc = {};
+          if (it.second == kSet) {
+            SetUcscCsc(pipe_info->ucsc_config.csc, &csc);
+          }
+          DLOGV_IF(kTagDriverConfig, "Call Perform UCSC CSC Op = %s, display: %d-%d",
+                   (it.second == kSet) ? "Set" : "Reset", display_id_, disp_type_);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_UCSC_CSC_CONFIG, pipe_info->pipe_id,
+                                    (it.second == kSet) ? &csc : nullptr);
+        }
+        break;
+      case kUcscGc:
+        if (it.second != kNoOp) {
+          DRMUcscGcMode gc = DRMUcscGcMode::UCSC_GC_MODE_DISABLE;
+          if (it.second == kSet) {
+            SetUcscGc(pipe_info->ucsc_config.gc_lut_sel, &gc);
+          }
+          DLOGV_IF(kTagDriverConfig, "Call Perform UCSC GC Op = %s, display: %d-%d",
+                   (it.second == kSet) ? "Set" : "Reset", display_id_, disp_type_);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_UCSC_GC_CONFIG, pipe_info->pipe_id, gc);
+        }
+        break;
+      case kUcscAlphaDither:
+        if (it.second != kNoOp) {
+          DLOGV_IF(kTagDriverConfig, "Call Perform UCSC ALPHA DITHER Op = %s, display: %d-%d",
+                   (it.second == kSet) ? "Set" : "Reset", display_id_, disp_type_);
+          drm_atomic_intf_->Perform(DRMOps::PLANE_SET_UCSC_ALPHA_DITHER_CONFIG, pipe_info->pipe_id,
+                                    pipe_info->ucsc_config.alpha_dither_en);
+        }
+        break;
+      default:
+        DLOGE("Unknown UCSC block - %d, display: %d-%d", it.first, display_id_, disp_type_);
+        break;
+    }
+  }
+}
+
+void HWDeviceDRM::SetUcscIgc(const HWUcscIgcMode igc_lut_sel, sde_drm::DRMUcscIgcMode *igc) {
+  switch (igc_lut_sel) {
+    case kUcscIgcModeSrgb:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_SRGB;
+      break;
+    case kUcscIgcModeRec709:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_REC709;
+      break;
+    case kUcscIgcModeGamma2_2:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_GAMMA2_2;
+      break;
+    case kUcscIgcModeHlg:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_HLG;
+      break;
+    case kUcscIgcModePq:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_PQ;
+      break;
+    default:
+      *igc = DRMUcscIgcMode::UCSC_IGC_MODE_DISABLE;
+      DLOGE("Invalid IGC mode");
+      break;
+  }
+}
+
+void HWDeviceDRM::SetUcscGc(const HWUcscGcMode gc_lut_sel, sde_drm::DRMUcscGcMode *gc) {
+  switch (gc_lut_sel) {
+    case kUcscGcModeSrgb:
+      *gc = DRMUcscGcMode::UCSC_GC_MODE_SRGB;
+      break;
+    case kUcscGcModePq:
+      *gc = DRMUcscGcMode::UCSC_GC_MODE_PQ;
+      break;
+    case kUcscGcModeGamma2_2:
+      *gc = DRMUcscGcMode::UCSC_GC_MODE_GAMMA2_2;
+      break;
+    case kUcscGcModeHlg:
+      *gc = DRMUcscGcMode::UCSC_GC_MODE_HLG;
+      break;
+    default:
+      *gc = DRMUcscGcMode::UCSC_GC_MODE_DISABLE;
+      DLOGE("Invalid GC mode");
+      break;
+  }
+}
+
+void HWDeviceDRM::SetUcscCsc(const HWUcscCsc &ucsc_csc, drm_msm_ucsc_csc *csc) {
+  uint32_t i = 0;
+  csc->cfg_param_0_len = UCSC_CSC_CFG0_PARAM_LEN;
+  for (i = 0; i < csc->cfg_param_0_len; i++) {
+    csc->cfg_param_0[i] = ucsc_csc.cfg_param_0[i];
+    DLOGV_IF(kTagDriverConfig, " UCSC csc[%d] = %lld", i, csc->cfg_param_0[i]);
+  }
+  csc->cfg_param_1_len = UCSC_CSC_CFG1_PARAM_LEN;
+  for (i = 0; i < csc->cfg_param_1_len; i++) {
+    csc->cfg_param_1[i] = ucsc_csc.cfg_param_1[i];
+  }
+}
+#endif
 
 void HWDeviceDRM::SetDGMCsc(const HWPipeCscInfo &dgm_csc_info, SDECsc *csc) {
   SetDGMCscV1(dgm_csc_info.csc, &csc->csc_v1);

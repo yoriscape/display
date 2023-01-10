@@ -114,6 +114,7 @@ using sde_drm::DRMPlaneType;
 using sde_drm::DRMTonemapLutType;
 using sde_drm::DRMPanelFeatureInfo;
 using sde_drm::DRMCWbCaptureMode;
+using sde_drm::DRMUcscBlockType;
 
 using std::vector;
 using std::map;
@@ -551,6 +552,39 @@ void HWInfoDRM::GetHWPlanesInfo(HWResourceInfo *hw_resource) {
             hw_resource->src_tone_map[kSrcTonemap3d] = 1;
           } else if (pipe_caps.type == kPipeTypeDMA) {
             hw_resource->src_tone_map[kSrcTonemap1d] = 1;
+          }
+        }
+      }
+    }
+    for (auto &it : pipe_obj.second.ucsc_block_version_map) {
+      HWUcscBlockType ucsc_block = kUcscBlockMax;
+      switch (it.first) {
+        case DRMUcscBlockType::UCSC_UNMULT:
+          ucsc_block = kUcscUnmult;
+          break;
+        case DRMUcscBlockType::UCSC_IGC:
+          // don't set ucsc block if src tonemap feature is disabled using property
+          ucsc_block = !disable_src_tonemap ? kUcscIgc : ucsc_block;
+          break;
+        case DRMUcscBlockType::UCSC_CSC:
+          ucsc_block = kUcscCsc;
+          break;
+        case DRMUcscBlockType::UCSC_GC:
+          ucsc_block = !disable_src_tonemap ? kUcscGc : ucsc_block;
+          break;
+        case DRMUcscBlockType::UCSC_ALPHA_DITHER:
+          ucsc_block = kUcscAlphaDither;
+          break;
+        default:
+          DLOGE("Unknown UCSC block - %d", it.first);
+          break;
+      }
+      if (ucsc_block != kUcscBlockMax) {
+        pipe_caps.ucsc_block_version_map[ucsc_block] = it.second;
+        if (ucsc_block == kUcscIgc || ucsc_block == kUcscGc) {
+          hw_resource->src_tone_map[kSrcTonemapUcsc] = 1;
+          if ((pipe_caps.type == kPipeTypeVIG) && (hw_resource->src_tone_map[kSrcTonemap3d] == 1)) {
+            hw_resource->src_tone_map[kSrcTonemapUcsc3d] = 1;
           }
         }
       }

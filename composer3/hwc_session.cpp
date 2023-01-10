@@ -1051,10 +1051,11 @@ void HWCSession::RegisterCallback(CallbackCommand descriptor, void *callback_dat
   }
 
   // On SF stop, disable the idle time.
-  if (!callback_fn && is_idle_time_up_ && hwc_display_[HWC_DISPLAY_PRIMARY]) {  // De-registering…
+  if (!callback_fn && is_client_up_ && hwc_display_[HWC_DISPLAY_PRIMARY]) {  // De-registering…
     DLOGI("disable idle time");
     hwc_display_[HWC_DISPLAY_PRIMARY]->SetIdleTimeoutMs(0, 0);
-    is_idle_time_up_ = false;
+    is_client_up_ = false;
+    hwc_display_[HWC_DISPLAY_PRIMARY]->MarkClientActive(false);
   }
 }
 
@@ -1257,12 +1258,15 @@ HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
     if (hwc_display_[display]) {
       is_builtin = (hwc_display_[display]->GetDisplayClass() == DISPLAY_CLASS_BUILTIN);
       is_power_off = (hwc_display_[display]->GetCurrentPowerMode() == PowerMode::OFF);
+    }
+  }
       if (secure_session_active_ && is_builtin && is_power_off) {
         if (GetActiveBuiltinDisplay() != HWCCallbacks::kNumDisplays) {
           DLOGI("Secure session in progress, defer power state change");
+      SCOPE_LOCK(locker_[display]);
+      if (hwc_display_[display]) {
           hwc_display_[display]->SetPendingPowerMode(mode);
           return HWC3::Error::None;
-        }
       }
     }
   }
@@ -3610,22 +3614,69 @@ void HWCSession::HandlePendingPowerMode(Display disp_id, const shared_ptr<Fence>
 
   Fence::Wait(retire_fence);
 
-  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays; display++) {
-    if (display != active_builtin_disp_id) {
-      Locker::ScopeLock lock_d(locker_[display]);
-      if (pending_power_mode_[display] && hwc_display_[display]) {
-        HWC3::Error error = hwc_display_[display]->SetPowerMode(
-            hwc_display_[display]->GetPendingPowerMode(), false);
-        if (HWC3::Error::None == error) {
-          pending_power_mode_[display] = false;
-          hwc_display_[display]->ClearPendingPowerMode();
-          pending_refresh_.set(UINT32(HWC_DISPLAY_PRIMARY));
-        } else {
-          DLOGE("SetDisplayStatus error = %d (%s)", error, to_string(error).c_str());
+  SCOPE_LOCK(pluggable_handler_lock_);
+  HWDisplaysInfo hw_displays_info = {};
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to get connected display list. Error = %d", error);
+    return;
+  }
+
+  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays;
+       display++) {
+    if (display == active_builtin_disp_id) {
+      continue;
+    }
+
+    Locker::ScopeLock lock_d(locker_[display]);
+    if (!pending_power_mode_[display] || !hwc_display_[display]) {
+      continue;
+    }
+
+    // check if a pluggable display which is in pending power state is already disconnected.
+    // In such cases, avoid powering up the display. It will be disconnected as part of
+    // HandlePendingHotplug.
+    bool disconnected = false;
+    Display client_id;
+    sdm::DisplayType disp_type;
+    for (auto &map_info : map_info_pluggable_) {
+      if (display != map_info.client_id) {
+        continue;
+      }
+
+      for (auto &iter : hw_displays_info) {
+        auto &info = iter.second;
+        if (info.display_id == map_info.sdm_id && !info.is_connected) {
+          disconnected = true;
+          break;
         }
       }
+      client_id = map_info.client_id;
+      disp_type = map_info.disp_type;
+      break;
+    }
+
+    if (disconnected) {
+      continue;
+    }
+
+    PowerMode pending_mode = hwc_display_[display]->GetPendingPowerMode();
+
+    if (pending_mode == PowerMode::OFF || pending_mode == PowerMode::DOZE_SUSPEND) {
+      map_active_displays_.erase(display);
+    } else {
+      map_active_displays_.insert(std::make_pair(client_id, disp_type));
+    }
+    HWC3::Error error = hwc_display_[display]->SetPowerMode(pending_mode, false);
+    if (HWC3::Error::None == error) {
+      pending_power_mode_[display] = false;
+      hwc_display_[display]->ClearPendingPowerMode();
+      pending_refresh_.set(UINT32(HWC_DISPLAY_PRIMARY));
+    } else {
+      DLOGE("SetDisplayStatus error = %d (%s)", error, to_string(error).c_str());
     }
   }
+
   secure_session_active_ = false;
 }
 
@@ -4109,6 +4160,7 @@ int HWCSession::WaitForCommitDone(Display display, int client_id) {
   int timeout_ms = -1;
   {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[display]);
+    DLOGI("Acquired lock for client %d display %" PRIu64, client_id, display);
     callbacks_.Refresh(display);
     clients_waiting_for_commit_[display].set(client_id);
     locker_[display].Wait();
@@ -4248,12 +4300,6 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
     hwc_display_[target_display]->SetQSyncMode(kQSyncModeNone);
   }
 
-  int ret = WaitForCommitDoneAsync(target_display, kClientTrustedUI);
-  if (ret != 0) {
-    DLOGE("WaitForCommitDone failed with error = %d", ret);
-    return -EINVAL;
-  }
-
   int timeout_ms = -1;
   {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
@@ -4298,16 +4344,11 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
     tui_state_transition_[disp_id] = true;
   }
 
-  tui_start_success_ = true;
   return 0;
 }
 android::status_t HWCSession::TUITransitionEnd(int disp_id) {
   // Hold this lock so that any deferred hotplug events will not be handled during the commit
   // and will be handled at the end of TUITransitionPrepare.
-  if (!tui_start_success_) {
-    DLOGI("Bailing out TUI end");
-    return -EINVAL;
-  }
   SCOPE_LOCK(pluggable_handler_lock_);
   Display target_display = GetDisplayIndex(disp_id);
   bool needs_refresh = false;
@@ -4342,10 +4383,9 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
 
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
-    int ret = WaitForCommitDoneAsync(target_display, kClientTrustedUI);
+    int ret = WaitForCommitDone(target_display, kClientTrustedUI);
     if (ret != 0) {
       DLOGE("Device unassign failed with error %d", ret);
-      tui_start_success_ = false;
       return -EINVAL;
     }
   }
@@ -4411,7 +4451,6 @@ android::status_t HWCSession::TUITransitionUnPrepare(int disp_id) {
     std::thread(&HWCSession::HandlePluggableDisplays, this, true).detach();
   }
   // Reset tui session state variable.
-  tui_start_success_ = false;
   DLOGI("End of TUI session on display %d", disp_id);
   return 0;
 }

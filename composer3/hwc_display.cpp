@@ -879,7 +879,7 @@ void HWCDisplay::BuildSolidFillStack() {
 HWC3::Error HWCDisplay::SetLayerType(LayerId layer_id, LayerType type) {
   const auto map_layer = layer_map_.find(layer_id);
   if (map_layer == layer_map_.end()) {
-    DLOGW("display [%" PRIu64"]-[%" PRIu64 "] SetLayerType (%" PRIu64 ") failed to find layer",
+    DLOGW("display [%" PRIu64 "]-[%" PRIu64 "] SetLayerType (%" PRIu64 ") failed to find layer",
           id_, type_, layer_id);
     return HWC3::Error::BadLayer;
   }
@@ -1972,12 +1972,15 @@ void HWCDisplay::DumpInputBuffers() {
         reinterpret_cast<const native_handle_t *>(layer->input_buffer.buffer_id);
     Fence::Wait(layer->input_buffer.acquire_fence);
 
-    DLOGI("Dump layer[%d] of %lu handle %p", i, layer_stack_.layers.size(), handle);
-
     if (!handle) {
-      DLOGE("Buffer handle is null");
+      DLOGW(
+          "Buffer handle is detected as null for layer: %s(%d) out of %lu layers with layer "
+          "flag value: %u",
+          layer->layer_name.c_str(), layer->layer_id, layer_stack_.layers.size(), layer->flags);
       continue;
     }
+
+    DLOGI("Dump layer[%d] of %lu handle %p", i, layer_stack_.layers.size(), handle);
 
     void *base_ptr = NULL;
     int error = buffer_allocator_->MapBuffer(handle, nullptr, &base_ptr);
@@ -2812,7 +2815,7 @@ HWC3::Error HWCDisplay::SetActiveConfigWithConstraints(
                                 vsync_period_change_constraints->desiredTimeNanos);
 
   out_timeline->refreshRequired = true;
-  if (info.x_pixels != fb_width_ || info.y_pixels != fb_height_) {
+  if (is_client_up_ && (info.x_pixels != fb_width_ || info.y_pixels != fb_height_)) {
     out_timeline->refreshRequired = false;
     fb_width_ = info.x_pixels;
     fb_height_ = info.y_pixels;
@@ -3091,7 +3094,14 @@ DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs
 }
 
 DisplayError HWCDisplay::PostHandleSecureEvent(SecureEvent secure_event) {
-  return display_intf_->PostHandleSecureEvent(secure_event);
+  DisplayError err = display_intf_->PostHandleSecureEvent(secure_event);
+  if (err == kErrorNone) {
+    if (secure_event == kTUITransitionEnd || secure_event == kTUITransitionUnPrepare) {
+      return kErrorNone;
+    }
+    secure_event_ = secure_event;
+  }
+  return err;
 }
 
 int HWCDisplay::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t *x_pixels,
@@ -3112,37 +3122,36 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
     return kErrorParameters;
   }
 
-  if (!display_intf_->HandleCwbTeardown()) {
-    bool pending_cwb_request = false;
-    {
-      std::unique_lock<std::mutex> lock(cwb_mutex_);
-      pending_cwb_request = !!cwb_buffer_map_.size();
-    }
-
-    if (!pending_cwb_request) {
-      dump_frame_count_ = 0;
-      dump_frame_index_ = 0;
-      dump_output_to_file_ = false;
-      if (output_buffer_base_ != nullptr) {
-        if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
-          DLOGW("unmap failed with err %d", errno);
-        }
-      }
-
-      if (buffer_allocator_ && buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
-        DLOGW("FreeBuffer failed");
-      }
-      output_buffer_info_ = {};
-      output_buffer_base_ = nullptr;
-      frame_capture_buffer_queued_ = false;
-      frame_capture_status_ = 0;
-      *needs_refresh = false;
-      return kErrorNone;
-    }
+  bool pending_cwb_request = false;
+  {
+    std::unique_lock<std::mutex> lock(cwb_mutex_);
+    pending_cwb_request = !!cwb_buffer_map_.size();
   }
 
-  *needs_refresh = true;
-  return kErrorNone;
+  if (!pending_cwb_request) {
+    dump_frame_count_ = 0;
+    dump_frame_index_ = 0;
+    dump_output_to_file_ = false;
+    if (output_buffer_base_ != nullptr) {
+      if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
+        DLOGW("unmap failed with err %d", errno);
+      }
+    }
+
+    if (buffer_allocator_ && buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
+      DLOGW("FreeBuffer failed");
+    }
+    output_buffer_info_ = {};
+    output_buffer_base_ = nullptr;
+    frame_capture_buffer_queued_ = false;
+    frame_capture_status_ = 0;
+    *needs_refresh = false;
+    return kErrorNone;
+  } else {
+    *needs_refresh = true;
+    display_intf_->HandleCwbTeardown();
+    return kErrorNone;
+  }
 }
 
 void HWCDisplay::MMRMEvent(bool restricted) {
@@ -3368,7 +3377,7 @@ CWBReleaseFenceError HWCDisplay::GetReadbackBufferFenceForClient(CWBClient clien
     } else {
       // If this function is called too early, then just need to check that cwb request is
       // persisting, which helps to decide the return status.
-      for (auto[id, cl] : cwb_buffer_map_) {
+      for (auto [id, cl] : cwb_buffer_map_) {
         if (cl == client) {
           handle_id = id;
           break;
@@ -3454,7 +3463,7 @@ void HWCDisplay::HandleFrameOutput() {
         cwb_resp.client = client;
         cwb_resp.status = kCWBReleaseFenceNotChecked;  // CWB request status is not yet notified
       } else {
-        for (auto & [ _, ccs ] : cwb_capture_status_map_) {
+        for (auto &[_, ccs] : cwb_capture_status_map_) {
           if (ccs.handle_id == handle_id) {
             client = ccs.client;
             break;
@@ -3462,7 +3471,7 @@ void HWCDisplay::HandleFrameOutput() {
         }
       }
     } else {
-      for (auto & [ _, ccs ] : cwb_capture_status_map_) {
+      for (auto &[_, ccs] : cwb_capture_status_map_) {
         if (ccs.handle_id != 0) {
           client = ccs.client;
           handle_id = ccs.handle_id;
@@ -3545,6 +3554,7 @@ void HWCDisplay::HandleFrameDump() {
     if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
       DLOGE("unmap failed with err %d", errno);
     }
+
     if (buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
       DLOGE("FreeBuffer failed");
     }
@@ -3635,7 +3645,10 @@ void HWCDisplay::NotifyCwbDone(int32_t status, const LayerBuffer &buffer) {
   }
 
   DLOGV_IF(kTagClient, "CWB notified for client = %d with buffer = %u, return status = %s(%d)",
-           client, handle_id, (!status) ? "Handled" : (status == -ETIME) ? "Timedout" : "Error",
+           client, handle_id,
+           (!status)            ? "Handled"
+           : (status == -ETIME) ? "Timedout"
+                                : "Error",
            status);
 }
 
@@ -3643,4 +3656,7 @@ void HWCDisplay::Abort() {
   display_intf_->Abort();
 }
 
+void HWCDisplay::MarkClientActive(bool is_client_up) {
+  is_client_up_ = is_client_up;
+}
 }  // namespace sdm
