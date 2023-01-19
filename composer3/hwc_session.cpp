@@ -3030,7 +3030,10 @@ int HWCSession::HandleBuiltInDisplays() {
 
       DLOGI("Hotplugging builtin display, sdm id = %d, client id = %d", info.display_id,
             UINT32(client_id));
+      // Free lock before the callback
+      primary_display_lock_.Unlock();
       callbacks_.Hotplug(client_id, true);
+      primary_display_lock_.Lock();
       break;
     }
   }
