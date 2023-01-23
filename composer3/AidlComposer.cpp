@@ -15,14 +15,13 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include "AidlComposer.h"
 #include "android/binder_auto_utils.h"
+#include <android/binder_ibinder_platform.h>
 
 namespace aidl {
 namespace vendor {
@@ -142,6 +141,12 @@ void AidlComposer::onClientDestroyed() {
   std::lock_guard<std::mutex> lock(mClientMutex);
   mClientAlive = false;
   mClientDestroyedCondition.notify_all();
+}
+
+SpAIBinder AidlComposer::createBinder() {
+  auto binder = BnComposer::createBinder();
+  AIBinder_setInheritRt(binder.get(), true);
+  return binder;
 }
 
 }  // namespace composer3

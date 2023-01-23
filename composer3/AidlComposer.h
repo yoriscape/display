@@ -15,9 +15,7 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -39,7 +37,6 @@ namespace composer3 {
 using aidl::android::hardware::graphics::composer3::BnComposer;
 using aidl::android::hardware::graphics::composer3::Capability;
 using aidl::android::hardware::graphics::composer3::IComposerClient;
-using ndk::ScopedAStatus;
 
 using aidl::vendor::qti::hardware::display::config::DisplayConfigAIDL;
 
@@ -53,6 +50,9 @@ class AidlComposer : public BnComposer {
   // Composer3 API
   ScopedAStatus createClient(std::shared_ptr<IComposerClient> *aidl_return) override;
   ScopedAStatus getCapabilities(std::vector<Capability> *aidl_return) override;
+
+ protected:
+  SpAIBinder createBinder() override;
 
  private:
   bool waitForClientDestroyedLocked(std::unique_lock<std::mutex> &lock);

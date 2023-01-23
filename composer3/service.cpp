@@ -28,9 +28,7 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -56,9 +54,9 @@ int main(int, char **) {
   // the conventional HAL might start binder services
   ProcessState::initWithDriver("/dev/vndbinder");
   sp<ProcessState> ps(ProcessState::self());
-  ps->setThreadPoolMaxThreadCount(4);
-  ps->startThreadPool();
-  ALOGI("ProcessState initialization completed");
+
+  // Explicitly set thread priority in case it isn't inherited correctly
+  setpriority(PRIO_PROCESS, 0, sdm::kThreadPriorityUrgent);
 
   // same as SF main thread
   struct sched_param param = {0};
@@ -74,7 +72,6 @@ int main(int, char **) {
   ALOGI("Configuring RPC threadpool...done!");
 
   ALOGI("Registering AidlComposer as a service");
-  ABinderProcess_setThreadPoolMaxThreadCount(0);
   std::shared_ptr<AidlComposer> composer = ndk::SharedRefBase::make<AidlComposer>();
   const std::string instance = std::string() + AidlComposer::descriptor + "/default";
   if (!composer->asBinder().get()) {
@@ -89,7 +86,6 @@ int main(int, char **) {
   }
 
   ALOGI("Registering DisplayConfig AIDL as a service");
-  ABinderProcess_setThreadPoolMaxThreadCount(0);
   std::shared_ptr<DisplayConfigAIDL> displayConfig = ndk::SharedRefBase::make<DisplayConfigAIDL>();
   const std::string instance2 = std::string() + DisplayConfigAIDL::descriptor + "/default";
   if (!displayConfig->asBinder().get()) {
@@ -103,7 +99,13 @@ int main(int, char **) {
     ALOGI("Successfully registered DisplayConfig AIDL as a service");
   }
 
+  ps->setThreadPoolMaxThreadCount(4);
+  ps->startThreadPool();
+  ALOGI("ProcessState initialization completed");
+
   ALOGI("Joining RPC threadpool...");
+  ABinderProcess_setThreadPoolMaxThreadCount(5);
+  ABinderProcess_startThreadPool();
   ABinderProcess_joinThreadPool();
 
   return 0;
