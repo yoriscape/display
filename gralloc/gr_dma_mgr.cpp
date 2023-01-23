@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -276,7 +276,7 @@ void DmaManager::GetHeapInfo(uint64_t usage, bool sensor_flag, std::string *dma_
 
   if (usage & GRALLOC_USAGE_PRIVATE_TRUSTED_VM) {
     // Allocate buffer from system heap and align the size to 2MB for all trusted UI use cases
-    heap_name = "qcom,display";
+    heap_name = "qcom,system";
     *alloc_size = ALIGN(*alloc_size, SIZE_2MB);
   }
 
