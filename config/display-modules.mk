@@ -2,6 +2,10 @@ DISPLAY_MODULES_HARDWARE:= android.hardware.graphics.mapper@4.0-impl-qti-display
                         vendor.qti.hardware.display.mapper@4.0.vendor \
                         vendor.qti.hardware.display.allocator-service
 
+ifeq ($(TARGET_BUILD_VARIANT),userdebug)
+    DISPLAY_MODULES_HARDWARE += libcomposertestservice
+endif
+
 TARGET_IS_HEADLESS := false
 ifeq ($(TARGET_USES_COMPOSER3),true)
 DISPLAY_MODULES_HARDWARE += vendor.qti.hardware.display.composer3-service
