@@ -833,7 +833,7 @@ void HWCSession::PerformQsyncCallback(Display display, bool qsync_enabled, uint3
   // AIDL callback
   if (!callback_clients_.empty()) {
     std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
-    for (auto const & [ id, callback ] : callback_clients_) {
+    for (auto const &[id, callback] : callback_clients_) {
       if (callback) {
         callback->notifyQsyncChange(qsync_enabled, refresh_rate, qsync_refresh_rate);
       }
@@ -1250,13 +1250,13 @@ HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
       is_power_off = (hwc_display_[display]->GetCurrentPowerMode() == PowerMode::OFF);
     }
   }
-      if (secure_session_active_ && is_builtin && is_power_off) {
-        if (GetActiveBuiltinDisplay() != HWCCallbacks::kNumDisplays) {
-          DLOGI("Secure session in progress, defer power state change");
+  if (secure_session_active_ && is_builtin && is_power_off) {
+    if (GetActiveBuiltinDisplay() != HWCCallbacks::kNumDisplays) {
+      DLOGI("Secure session in progress, defer power state change");
       SCOPE_LOCK(locker_[display]);
       if (hwc_display_[display]) {
-          hwc_display_[display]->SetPendingPowerMode(mode);
-          return HWC3::Error::None;
+        hwc_display_[display]->SetPendingPowerMode(mode);
+        return HWC3::Error::None;
       }
     }
   }
@@ -3089,8 +3089,8 @@ int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
         pending_hotplug_event_ = kHotPlugNone;
         DLOGE("All displays could not be connected. Error %d '%s'.", status, strerror(abs(status)));
     }
-    DLOGI("Handling hotplug... %s", (kHotPlugNone == pending_hotplug_event_) ?
-          "Stopped." : "Done. Hotplug events pending.");
+    DLOGI("Handling hotplug... %s",
+          (kHotPlugNone == pending_hotplug_event_) ? "Stopped." : "Done. Hotplug events pending.");
     return status;
   }
 
@@ -3569,8 +3569,7 @@ void HWCSession::HandlePendingPowerMode(Display disp_id, const shared_ptr<Fence>
     return;
   }
 
-  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays;
-       display++) {
+  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays; display++) {
     if (display == active_builtin_disp_id) {
       continue;
     }

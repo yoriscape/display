@@ -64,11 +64,11 @@
 #include "hwc_buffer_sync_handler.h"
 #include "hwc_display_virtual_factory.h"
 
-using ::android::hardware::Return;
-using ::android::hardware::hidl_string;
-using android::hardware::hidl_handle;
-using ::android::hardware::hidl_vec;
 using ::android::sp;
+using android::hardware::hidl_handle;
+using ::android::hardware::hidl_string;
+using ::android::hardware::hidl_vec;
+using ::android::hardware::Return;
 using ::android::hardware::Void;
 namespace composer_V3 = aidl::android::hardware::graphics::composer3;
 using HwcDisplayCapability = composer_V3::DisplayCapability;

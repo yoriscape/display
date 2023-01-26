@@ -50,10 +50,10 @@
 #include "hwc_buffer_sync_handler.h"
 
 namespace composer_V3 = aidl::android::hardware::graphics::composer3;
-using composer_V3::ColorMode;
-using composer_V3::RenderIntent;
 using aidl::android::hardware::graphics::common::Dataspace;
 using aidl::android::hardware::graphics::common::Hdr;
+using composer_V3::ColorMode;
+using composer_V3::RenderIntent;
 using HwcAttribute = composer_V3::DisplayAttribute;
 using VsyncPeriodChangeConstraints = composer_V3::VsyncPeriodChangeConstraints;
 using ClientTargetProperty = composer_V3::ClientTargetProperty;

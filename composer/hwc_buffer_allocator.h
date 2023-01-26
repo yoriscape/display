@@ -53,8 +53,8 @@
 #include <QtiGrallocPriv.h>
 
 using android::hardware::graphics::allocator::V4_0::IAllocator;
-using android::hardware::graphics::mapper::V4_0::IMapper;
 using android::hardware::graphics::common::V1_1::BufferUsage;
+using android::hardware::graphics::mapper::V4_0::IMapper;
 using vendor::qti::hardware::display::mapperextensions::V1_3::IQtiMapperExtensions;
 using IQtiMapperExtensions_v1_3 =
     vendor::qti::hardware::display::mapperextensions::V1_3::IQtiMapperExtensions;

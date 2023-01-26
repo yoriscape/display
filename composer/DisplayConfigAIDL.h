@@ -54,8 +54,8 @@ namespace config {
 
 using ::android::binder::Status;
 using ndk::ScopedAStatus;
-using sdm::HWCSession;
 using sdm::Display;
+using sdm::HWCSession;
 using sdm::HWC3::Error;
 
 class DisplayConfigCallback : public BnDisplayConfigCallback {
