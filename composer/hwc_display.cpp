@@ -1904,12 +1904,6 @@ HWC2::Error HWCDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence
   flush_ = false;
   skip_commit_ = false;
 
-  if (display_pause_pending_) {
-    DLOGI("Pause display %d-%d", sdm_id_, type_);
-    display_paused_ = true;
-    display_pause_pending_ = false;
-  }
-
   layer_stack_.flags.geometry_changed = false;
   geometry_changes_ = GeometryChanges::kNone;
   flush_ = false;
@@ -2269,6 +2263,10 @@ void HWCDisplay::GetRealPanelResolution(uint32_t *x_pixels, uint32_t *y_pixels) 
 int HWCDisplay::SetDisplayStatus(DisplayStatus display_status) {
   int status = 0;
 
+  if (secure_event_ != kSecureEventMax) {
+    DLOGW("SetDisplayStatus is not supported when TUI transition in progress");
+    return -ENOTSUP;
+  }
   switch (display_status) {
     case kDisplayStatusResume:
       display_paused_ = false;
@@ -2373,6 +2371,10 @@ void HWCDisplay::ApplyScanAdjustment(hwc_rect_t *display_frame) {
 }
 
 int HWCDisplay::ToggleScreenUpdates(bool enable) {
+  if (secure_event_ != kSecureEventMax) {
+    DLOGW("Toggle screen updates is not supported when TUI transition in progress");
+    return -ENOTSUP;
+  }
   display_paused_ = enable ? false : true;
   callbacks_->Refresh(id_);
   return 0;
@@ -3090,7 +3092,7 @@ DisplayError HWCDisplay::ValidateTUITransition (SecureEvent secure_event) {
       }
       break;
     case kTUITransitionStart:
-      if (secure_event_ != kSecureEventMax) {
+      if (secure_event_ != kTUITransitionPrepare) {
         DLOGE("Invalid TUI transition from %d to %d", secure_event_, secure_event);
         return kErrorParameters;
       }
@@ -3108,8 +3110,14 @@ DisplayError HWCDisplay::ValidateTUITransition (SecureEvent secure_event) {
   return kErrorNone;
 }
 
-DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh) {
+DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh,
+                                           bool update_event_only) {
   if (secure_event == secure_event_) {
+    return kErrorNone;
+  }
+
+  if (update_event_only) {
+    secure_event_ = secure_event;
     return kErrorNone;
   }
 
@@ -3184,6 +3192,9 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
   pending_cwb_request = !!cwb_buffer_map_.size();
   }
 
+  *needs_refresh = true;
+  display_intf_->HandleCwbTeardown();
+
   if (!pending_cwb_request) {
     dump_frame_count_ = 0;
     dump_frame_index_ = 0;
@@ -3201,13 +3212,8 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
     output_buffer_base_ = nullptr;
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
-    *needs_refresh = false;
-    return kErrorNone;
-  } else {
-    *needs_refresh = true;
-    display_intf_->HandleCwbTeardown();
-    return kErrorNone;
   }
+  return kErrorNone;
 }
 
 void HWCDisplay::MMRMEvent(bool restricted) {
@@ -3279,7 +3285,7 @@ HWC2::Error HWCDisplay::SetReadbackBuffer(const native_handle_t *buffer,
   }
 
   if (secure_event_ != kSecureEventMax) {
-    DLOGE("CWB is not supported as TUI transition is in progress");
+    DLOGW("CWB is not supported as TUI transition is in progress");
     return HWC2::Error::Unsupported;
   }
 

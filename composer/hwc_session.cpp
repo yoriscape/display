@@ -3119,10 +3119,7 @@ int HWCSession::HandleBuiltInDisplays() {
 
       DLOGI("Hotplugging builtin display, sdm id = %d, client id = %d", info.display_id,
             UINT32(client_id));
-      // Free lock before the callback
-      primary_display_lock_.Unlock();
       callbacks_.Hotplug(client_id, HWC2::Connection::Connected);
-      primary_display_lock_.Lock();
       break;
     }
   }
@@ -3168,37 +3165,34 @@ bool HWCSession::IsHWDisplayConnected(hwc2_display_t client_id) {
 }
 
 int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
+  SCOPE_LOCK(pluggable_handler_lock_);
+  if (null_display_mode_) {
+    DLOGW("Skipped pluggable display handling in null-display mode");
+    return 0;
+  }
+
+  hwc2_display_t virtual_display_index = (hwc2_display_t)GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
+  std::bitset<kSecureMax> secure_sessions = 0;
+
+  hwc2_display_t active_builtin_disp_id = GetActiveBuiltinDisplay();
+  if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
+    Locker::ScopeLock lock_a(locker_[active_builtin_disp_id]);
+    hwc_display_[active_builtin_disp_id]->GetActiveSecureSession(&secure_sessions);
+  }
+
+  if (secure_sessions.any() || hwc_display_[virtual_display_index]) {
+    // Defer hotplug handling.
+    DLOGI("Marking hotplug pending...");
+    pending_hotplug_event_ = kHotPlugEvent;
+    return -EAGAIN;
+  }
+
+  DLOGI("Handling hotplug...");
   HWDisplaysInfo hw_displays_info = {};
-  {
-    SCOPE_LOCK(pluggable_handler_lock_);
-    if (null_display_mode_) {
-      DLOGW("Skipped pluggable display handling in null-display mode");
-      return 0;
-    }
-
-    hwc2_display_t virtual_display_index =
-        (hwc2_display_t)GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
-    std::bitset<kSecureMax> secure_sessions = 0;
-
-    hwc2_display_t active_builtin_disp_id = GetActiveBuiltinDisplay();
-    if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
-      Locker::ScopeLock lock_a(locker_[active_builtin_disp_id]);
-      hwc_display_[active_builtin_disp_id]->GetActiveSecureSession(&secure_sessions);
-    }
-
-    if (secure_sessions.any() || hwc_display_[virtual_display_index]) {
-      // Defer hotplug handling.
-      DLOGI("Marking hotplug pending...");
-      pending_hotplug_event_ = kHotPlugEvent;
-      return -EAGAIN;
-    }
-
-    DLOGI("Handling hotplug...");
-    DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
-    if (error != kErrorNone) {
-      DLOGE("Failed to get connected display list. Error = %d", error);
-      return -EINVAL;
-    }
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    DLOGE("Failed to get connected display list. Error = %d", error);
+    return -EINVAL;
   }
 
   int status = HandleDisconnectedDisplays(&hw_displays_info);
@@ -4369,11 +4363,9 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
   for (auto &info : map_info) {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
     if (hwc_display_[info.client_id]) {
-      if (info.client_id == target_display) {
-        continue;
-      }
-      if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionPrepare,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionPrepare, &needs_refresh,
+                                                          info.client_id == target_display) !=
+                                                          kErrorNone) {
         return -EINVAL;
       }
     }
@@ -4417,8 +4409,8 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
     if (hwc_display_[target_display]) {
-      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionStart,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionStart, &needs_refresh,
+                                                          false) != kErrorNone) {
         return -EINVAL;
       }
       uint32_t config = 0;
@@ -4478,8 +4470,8 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
     hwc_display_[target_display]->SetIdleTimeoutMs(idle_time_active_ms_, idle_time_inactive_ms_);
     hwc_display_[target_display]->SetQSyncMode(hwc_display_qsync_[target_display]);
     if (hwc_display_[target_display]) {
-      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionEnd,
-                                                          &needs_refresh) != kErrorNone) {
+      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionEnd, &needs_refresh,
+                                                          false) != kErrorNone) {
         return -EINVAL;
       }
     } else {
@@ -4534,14 +4526,12 @@ android::status_t HWCSession::TUITransitionUnPrepare(int disp_id) {
     {
       SEQUENCE_WAIT_SCOPE_LOCK(locker_[info.client_id]);
       if (hwc_display_[info.client_id]) {
-        if (info.client_id == target_display) {
-          continue;
-        }
         if (info.disp_type == kPluggable && pending_hotplug_event_ == kHotPlugEvent) {
           continue;
         }
-        if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionUnPrepare,
-                                                            &needs_refresh) != kErrorNone) {
+        if (hwc_display_[info.client_id]->HandleSecureEvent(kTUITransitionUnPrepare, &needs_refresh,
+                                                            info.client_id == target_display) !=
+                                                            kErrorNone) {
           return -EINVAL;
         }
       }

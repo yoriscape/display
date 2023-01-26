@@ -130,6 +130,7 @@ class CompManager : public CwbCallback {
                                  const std::vector<PrimariesTransfer> &colormodes_cs);
   DisplayError SetBlendSpace(Handle display_ctx, const PrimariesTransfer &blend_space);
   void HandleSecureEvent(Handle display_ctx, SecureEvent secure_event);
+  void PostHandleSecureEvent(Handle display_ctx, SecureEvent secure_event);
   void SetSafeMode(bool enable);
   bool IsSafeMode();
   void GenerateROI(Handle display_ctx, DispLayerStack *disp_layer_stack);
