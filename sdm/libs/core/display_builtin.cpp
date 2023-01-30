@@ -3085,4 +3085,9 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
+  DLOGI("Setting the Demura Config, config = %d", demura_idx);
+  return kErrorNone;
+}
+
 }  // namespace sdm

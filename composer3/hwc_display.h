@@ -428,6 +428,7 @@ class HWCDisplay : public DisplayEventHandler {
   virtual HWC3::Error SetDimmingMinBl(int min_bl) { return HWC3::Error::Unsupported; }
   virtual HWC3::Error RetrieveDemuraTnFiles() { return HWC3::Error::Unsupported; }
   virtual HWC3::Error SetDemuraState(int state) { return HWC3::Error::Unsupported; }
+  virtual HWC3::Error SetDemuraConfig(int demura_idx) { return HWC3::Error::Unsupported; }
   virtual HWC3::Error GetClientTargetProperty(ClientTargetProperty *out_client_target_property);
   virtual void GetConfigInfo(std::map<uint32_t, DisplayConfigVariableInfo> *variable_config_map,
                              int *active_config_index, uint32_t *num_configs);

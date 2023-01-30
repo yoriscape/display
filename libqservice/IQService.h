@@ -21,7 +21,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -126,6 +126,7 @@ public:
       SET_JITTER_CONFIG = 58,                  // Watchdog TE Jitter Configuration
       RETRIEVE_DEMURATN_FILES = 59,            // Retrieve DemuraTn files from TVM
       SET_DEMURA_STATE = 60,                   // Enable/disable demura feature
+      SET_DEMURA_CONFIG = 61,                  // Set the demura configuration index
       COMMAND_LIST_END = 400,
     };
 

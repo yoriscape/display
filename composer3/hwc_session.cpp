@@ -1368,6 +1368,10 @@ HWC3::Error HWCSession::SetDemuraState(Display display, int32_t state) {
   return CallDisplayFunction(display, &HWCDisplay::SetDemuraState, state);
 }
 
+HWC3::Error HWCSession::SetDemuraConfig(Display display, int32_t demura_idx) {
+  return CallDisplayFunction(display, &HWCDisplay::SetDemuraConfig, demura_idx);
+}
+
 HWC3::Error HWCSession::GetDozeSupport(Display display, int32_t *out_support) {
   if (!out_support) {
     return HWC3::Error::BadParameter;
@@ -2053,6 +2057,17 @@ android::status_t HWCSession::notifyCallback(uint32_t command, const android::Pa
       int disp_id = input_parcel->readInt32();
       int state = input_parcel->readInt32();
       status = INT32(SetDemuraState(disp_id, state));
+      output_parcel->writeInt32(status);
+    } break;
+
+    case qService::IQService::SET_DEMURA_CONFIG: {
+      if (!input_parcel || !output_parcel) {
+        DLOGE("QService command = %d: input_parcel and output_parcel needed.", command);
+        break;
+      }
+      int disp_id = input_parcel->readInt32();
+      int demura_idx = input_parcel->readInt32();
+      status = INT32(SetDemuraConfig(disp_id, demura_idx));
       output_parcel->writeInt32(status);
     } break;
 

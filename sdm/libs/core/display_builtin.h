@@ -195,6 +195,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state) override;
+  DisplayError SetDemuraConfig(int demura_idx) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
