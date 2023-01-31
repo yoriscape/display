@@ -58,13 +58,19 @@ int ComposerTestService::CommandHandler(uint32_t command, const android::Parcel 
   switch (command) {
     case ICompTestBndService::CONFIGURE_CWB_TEST:
       if (!input_parcel) {
+        status = -EINVAL;
         DLOGE("QService command = %d: input_parcel needed.", command);
         break;
       }
       status = ConfigureCWBTest(input_parcel);
       break;
     case ICompTestBndService::STOP_CWB_TEST:
-      status = StopCWBTest();
+      if (!input_parcel) {
+        status = -EINVAL;
+        DLOGE("QService command = %d: input_parcel needed.", command);
+        break;
+      }
+      status = StopCWBTest(input_parcel);
       break;
     default:
       status = -EINVAL;
@@ -96,12 +102,12 @@ int ComposerTestService::ConfigureCWBTest(const android::Parcel *input_parcel) {
   return cwb_test_intf_->ConfigureCWB(cwb_config);
 }
 
-int ComposerTestService::StopCWBTest() {
+int ComposerTestService::StopCWBTest(const android::Parcel *input_parcel) {
   if (!cwb_test_intf_) {
     return -EINVAL;
   }
-
-  return cwb_test_intf_->StopTest();
+  auto disp = static_cast<DisplayConfig::DisplayType>(input_parcel->readInt32());
+  return cwb_test_intf_->StopTest(disp);
 }
 
 }  // namespace sdm
