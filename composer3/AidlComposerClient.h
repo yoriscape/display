@@ -251,7 +251,7 @@ class AidlComposerClient : public BnComposerClient {
       }
     }
     __attribute__((always_inline)) inline void writeError(std::string function, Error err) {
-      ALOGE("%s: error: %s", function.c_str(), sdm::to_string(err).c_str());
+      ALOGW("%s: error: %s", function.c_str(), sdm::to_string(err).c_str());
       mWriter->setError(mCommandIndex, INT32(err));
     }
 

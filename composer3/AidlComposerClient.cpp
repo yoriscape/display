@@ -834,7 +834,7 @@ void AidlComposerClient::CommandEngine::executeSetClientTarget(int64_t display,
 
   fence = Fence::Create(fd, "fbt");
   if (fence == nullptr) {
-    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
+    ALOGV("%s: Failed to dup fence %d", __FUNCTION__, fd);
     sync_wait(fd, -1);
   }
 
@@ -880,7 +880,7 @@ void AidlComposerClient::CommandEngine::executeSetOutputBuffer(uint64_t display,
 
   fence = Fence::Create(fd, "outbuf");
   if (fence == nullptr) {
-    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
+    ALOGV("%s: Failed to dup fence %d", __FUNCTION__, fd);
     sync_wait(fd, -1);
   }
 
@@ -995,7 +995,7 @@ void AidlComposerClient::CommandEngine::executeSetLayerBuffer(int64_t display, i
 
   fence = Fence::Create(fd, "layer");
   if (fence == nullptr) {
-    ALOGW("%s: Failed to dup fence %d", __FUNCTION__, fd);
+    ALOGV("%s: Failed to dup fence %d", __FUNCTION__, fd);
     sync_wait(fd, -1);
   }
 
