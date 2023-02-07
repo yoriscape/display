@@ -28,6 +28,13 @@
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 /*! @file core_interface.h
   @brief Interface file for core of the display subsystem.
 
@@ -114,6 +121,8 @@ struct HWDisplayInfo {
   bool is_wb_ubwc_supported = true;            //!< check hardware wb ubwc support
   bool is_reserved = false;                    //!< check if currently reserved by any display
   uint32_t max_linewidth = 0;                  //!< max width supported by connector
+  uint32_t max_cwb = 0;                        //!< Maximum CWB instances supported concurrently,
+                                               //!< and it is valid only for virtual display.
 };
 
 /*! @brief Information on all displays as a map with display_id as key.

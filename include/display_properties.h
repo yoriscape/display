@@ -37,6 +37,7 @@
 #ifndef __DISPLAY_PROPERTIES_H__
 #define __DISPLAY_PROPERTIES_H__
 
+// clang-format off
 #define DISP_PROP_PREFIX                     "vendor.display."
 #define GRALLOC_PROP_PREFIX                  "vendor.gralloc."
 #define PERSIST_DISP_PROP_PREFIX             "persist.vendor.display."
@@ -189,6 +190,9 @@
 // Enable IWE
 #define ENABLE_INLINE_WRITEBACK              DISPLAY_PROP("enable_inline_writeback")
 
+// Configuration to reserve the writeback blocks for specific usage like CWB, IWE or WFD
+#define RESERVED_WRITEBACK_CONFIG            DISPLAY_PROP("reserved_writeback_config")
+
 // Add all vendor.display properties above
 
 #define DISABLE_AHARDWARE_BUFFER_PROP        GRALLOC_PROP("disable_ahardware_buffer")
@@ -220,4 +224,5 @@
 
 // Add all other.properties above
 // End of property
+// clang-format on
 #endif  // __DISPLAY_PROPERTIES_H__
