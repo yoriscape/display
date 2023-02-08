@@ -846,6 +846,11 @@ HWC3::Error HWCSession::GetReleaseFences(Display display, uint32_t *out_num_elem
                              out_fences);
 }
 
+HWC3::Error HWCSession::getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
+                                                    AlphaInterpretation *alpha) {
+  return CallDisplayFunction(display, &HWCDisplay::getDisplayDecorationSupport, format, alpha);
+}
+
 void HWCSession::PerformQsyncCallback(Display display, bool qsync_enabled, uint32_t refresh_rate,
                                       uint32_t qsync_refresh_rate) {
   // AIDL callback

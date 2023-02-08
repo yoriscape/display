@@ -528,6 +528,8 @@ HWC3::Error HWCLayer::SetLayerCompositionType(Composition type) {
       break;
     case Composition::CURSOR:
       break;
+    case Composition::DISPLAY_DECORATION:
+      break;
     case Composition::INVALID:
       return HWC3::Error::BadParameter;
     default:
@@ -993,6 +995,9 @@ LayerBufferFormat HWCLayer::GetSDMFormat(const int32_t &source, const int flags)
       break;
     case static_cast<int>(PixelFormat::RGBA_FP16):
       format = kFormatRGBA16161616F;
+      break;
+    case static_cast<int>(PixelFormat_V3::R_8):
+      format = kFormatA8;
       break;
     default:
       DLOGW("Unsupported format type = %d", source);

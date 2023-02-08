@@ -495,8 +495,16 @@ ScopedAStatus AidlComposerClient::getSupportedContentTypes(int64_t in_display,
 
 ScopedAStatus AidlComposerClient::getDisplayDecorationSupport(
     int64_t in_display, std::optional<DisplayDecorationSupport> *aidl_return) {
-  // TODO: Add support in hwc_session
-  return TO_BINDER_STATUS(INT32(Error::Unsupported));
+  PixelFormat_V3 format;
+  AlphaInterpretation alpha;
+  auto error = hwc_session_->getDisplayDecorationSupport(in_display, &format, &alpha);
+  if (error == Error::None) {
+    aidl_return->emplace();
+    aidl_return->value().alphaInterpretation = alpha;
+    aidl_return->value().format = format;
+  }
+
+  return TO_BINDER_STATUS(INT32(error));
 }
 
 ScopedAStatus AidlComposerClient::registerCallback(

@@ -17,7 +17,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -47,14 +47,15 @@ namespace composer3 {
   x == 0 ? ndk::ScopedAStatus::ok() : ndk::ScopedAStatus::fromServiceSpecificError(x)
 
 using aidl::android::hardware::common::NativeHandle;
+using aidl::android::hardware::graphics::common::AlphaInterpretation;
 using aidl::android::hardware::graphics::common::Dataspace;
 using aidl::android::hardware::graphics::common::DisplayDecorationSupport;
+using aidl::android::hardware::graphics::common::FRect;
 using aidl::android::hardware::graphics::common::Hdr;
 using aidl::android::hardware::graphics::common::PixelFormat;
 using aidl::android::hardware::graphics::common::Point;
-using aidl::android::hardware::graphics::common::Transform;
 using aidl::android::hardware::graphics::common::Rect;
-using aidl::android::hardware::graphics::common::FRect;
+using aidl::android::hardware::graphics::common::Transform;
 using aidl::android::hardware::graphics::composer3::BnComposerClient;
 using aidl::android::hardware::graphics::composer3::Buffer;
 using aidl::android::hardware::graphics::composer3::ClientTarget;
