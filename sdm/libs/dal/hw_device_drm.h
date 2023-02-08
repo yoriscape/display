@@ -136,7 +136,7 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError Validate(HWLayersInfo *hw_layers_info);
   virtual DisplayError Commit(HWLayersInfo *hw_layers_info);
   virtual DisplayError Flush(HWLayersInfo *hw_layers_info);
-  DisplayError SetupConcurrentWritebackModes();
+  DisplayError SetupConcurrentWritebackModes(int32_t writeback_id);
   bool SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                 int64_t *release_fence_fd);
   DisplayError TeardownConcurrentWriteback(void);
@@ -206,7 +206,7 @@ class HWDeviceDRM : public HWInterface {
     return kErrorNotSupported;
   }
   virtual DisplayError CancelDeferredPowerMode();
-  virtual void HandleCwbTeardown();
+  virtual void HandleCwbTeardown(bool sync_teardown);
 
   enum {
     kHWEventVSync,

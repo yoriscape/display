@@ -250,6 +250,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time) { return kErrorNotSupported; }
   virtual void NotifyCwbDone(int32_t status, const LayerBuffer& buffer);
   virtual void Refresh();
+  virtual void OnCwbTeardown(bool sync_teardown);
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }

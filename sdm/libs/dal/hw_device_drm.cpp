@@ -3106,14 +3106,15 @@ uint64_t HWDeviceDRM::GetSupportedBitClkRate(uint32_t new_mode_index,
 
 bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bool validate,
                                            int64_t *release_fence_fd) {
-  bool enable = hw_resource_.has_concurrent_writeback && hw_layer_info.output_buffer;
+  bool enable = hw_resource_.has_concurrent_writeback && hw_layer_info.output_buffer &&
+                (hw_layer_info.cwb_id != -1) && !pending_cwb_teardown_;
   if (!(enable || cwb_config_.enabled)) {  // the frame is neither cwb setup nor cwb teardown frame
     return false;
   }
 
   bool setup_modes = enable && !cwb_config_.enabled;
   // Modes can be setup in prepare or commit path.
-  if (setup_modes && (SetupConcurrentWritebackModes() == kErrorNone)) {
+  if (setup_modes && (SetupConcurrentWritebackModes(hw_layer_info.cwb_id) == kErrorNone)) {
     cwb_config_.enabled = true;
   }
 
@@ -3138,9 +3139,9 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
   return false;
 }
 
-DisplayError HWDeviceDRM::SetupConcurrentWritebackModes() {
-  // To setup Concurrent Writeback topology, get the Connector ID of Virtual display
-  if (drm_mgr_intf_->RegisterDisplay(DRMDisplayType::VIRTUAL, &cwb_config_.token)) {
+DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
+  // To setup Concurrent Writeback topology, reserve the Connector ID of Virtual display
+  if (drm_mgr_intf_->RegisterDisplay(writeback_id, &cwb_config_.token)) {
     DLOGW("RegisterDisplay failed for Concurrent Writeback");
     return kErrorResources;
   }
@@ -3383,9 +3384,19 @@ DisplayError HWDeviceDRM::CancelDeferredPowerMode() {
   return kErrorNone;
 }
 
-void HWDeviceDRM::HandleCwbTeardown() {
+void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
   DLOGI("Pending CWB teardown on CRTC: %u", token_.crtc_id);
   pending_cwb_teardown_ = true;
+  if (sync_teardown) {
+    // This perform call is just used to tear down CWB topology in case of single
+    // threaded (sync) call for tear down to avoid blocking of sdm service (or screen freeze for
+    // single thread execution), but it will execute in next cycle for complete tear down.
+    // TODO(user): This may cause WB frame drop in next cycle for the display, which wants to
+    // use it for a particular usage. If there is no any chance of synchronous call for tear down,
+    // then it can be removed.
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, cwb_config_.token.conn_id, 0);
+    TeardownConcurrentWriteback();
+  }
 }
 
 }  // namespace sdm

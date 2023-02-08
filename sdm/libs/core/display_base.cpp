@@ -847,6 +847,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
 
   disp_layer_stack_.info.output_buffer = layer_stack->output_buffer;
   disp_layer_stack_.info.hw_cwb_config = layer_stack->cwb_config;
+  disp_layer_stack_.info.cwb_id = layer_stack->cwb_id;
 
   EnableLlccDuringAodMode(layer_stack);
 
@@ -1406,6 +1407,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   disp_layer_stack_.info.output_buffer = layer_stack->output_buffer;
+  disp_layer_stack_.info.cwb_id = layer_stack->cwb_id;
   if (layer_stack->request_flags.trigger_refresh) {
     if (!disable_cwb_idle_fallback_ && disp_layer_stack_.info.output_buffer) {
       cwb_fence_wait_ = true;
@@ -4280,6 +4282,10 @@ void DisplayBase::Refresh() {
   event_handler_->Refresh();
 }
 
+void DisplayBase::OnCwbTeardown(bool sync_teardown) {
+  hw_intf_->HandleCwbTeardown(sync_teardown);
+}
+
 DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
   ClientLock lock(disp_mutex_);
 
@@ -4318,7 +4324,8 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 
   error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);
   if (error != kErrorNone) {
-    DLOGE("CWB config failed");
+    DLOGW("CWB request rejected for display %d-%d (Display Error code: %d).", display_id_,
+          display_type_, error);
     return error;
   }
 
@@ -4331,8 +4338,6 @@ bool DisplayBase::HandleCwbTeardown() {
   if (!hw_resource_info_.has_concurrent_writeback) {
     return false;
   }
-
-  hw_intf_->HandleCwbTeardown();
 
   return comp_manager_->HandleCwbTeardown(display_comp_ctx_);
 }

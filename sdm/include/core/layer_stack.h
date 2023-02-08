@@ -592,6 +592,7 @@ struct LayerStack {
   bool tonemapper_active  = false;
   CwbConfig *cwb_config = NULL;        //!< Struct that contains the original CWB configuration
                                        //!< provided by CWB client.
+  int32_t cwb_id = -1;                 //!< Populate writeback connector ID allocated for CWB.
   bool validate_only = false;
   bool client_incompatible = false;    //!< Flag to disable async commit when client target is
                                        //!< not compatible.

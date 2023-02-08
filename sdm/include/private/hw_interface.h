@@ -185,7 +185,7 @@ class HWInterface {
   virtual DisplayError GetQsyncFps(uint32_t *qsync_fps) = 0;
   virtual DisplayError UpdateTransferTime(uint32_t transfer_time) = 0;
   virtual DisplayError CancelDeferredPowerMode() = 0;
-  virtual void HandleCwbTeardown() = 0;
+  virtual void HandleCwbTeardown(bool sync_teardown) = 0;
 
  protected:
   virtual ~HWInterface() { }
