@@ -66,12 +66,11 @@ HWC3::Error HWCCallbacks::Hotplug(Display display, bool state) {
       return HWC3::Error::None;
     }
   }
-  // when hotplugging primary do so synchronously
-  // all other hotplug events are handled asynchronously
-  if (display == HWC_DISPLAY_PRIMARY) {
-    (*hotplug_)(callback_data_, display, INT32(state));
-  } else {
+  // External display hotplug events are handled asynchronously
+  if (display == HWC_DISPLAY_EXTERNAL || display == HWC_DISPLAY_EXTERNAL_2) {
     std::thread(*hotplug_, callback_data_, static_cast<long>(display), INT32(state)).detach();
+  } else {
+    (*hotplug_)(callback_data_, display, INT32(state));
   }
   return HWC3::Error::None;
 }
