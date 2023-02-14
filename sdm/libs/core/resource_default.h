@@ -138,6 +138,9 @@ class ResourceDefault : public ResourceInterface {
   virtual bool HandleCwbTeardown(Handle display_ctx) {
     return false;
   }
+  virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id) { return kErrorResources; }
+  virtual DisplayError AllocateVirtualDisplayId(int32_t *vdisp_id) { return kErrorResources; }
+  virtual DisplayError DeallocateVirtualDisplayId(int32_t vdisp_id) { return kErrorResources; }
   virtual void HandleSkipValidate(Handle display_ctx);
   virtual std::string Dump();
   virtual uint32_t GetMixerCount();
