@@ -1290,8 +1290,11 @@ void HWCLayer::SetComposition(const LayerComposition &sdm_composition) {
   if (sdm_composition == kCompositionSDE && layer_->flags.solid_fill != 0) {
     hwc_composition = Composition::SOLID_COLOR;
   }
-  // Update Display Decoration composition
-  if (sdm_composition == kCompositionSDE && layer_->input_buffer.flags.mask_layer != 0) {
+  // Update Display Decoration composition only for A8 mask layer i.e when requested composition
+  // is DISPLAY_DECORATION
+  Composition requested_composition = GetClientRequestedCompositionType();
+  if ((sdm_composition == kCompositionSDE && layer_->input_buffer.flags.mask_layer != 0) &&
+      (requested_composition == Composition::DISPLAY_DECORATION)) {
     hwc_composition = Composition::DISPLAY_DECORATION;
   }
   device_selected_ = hwc_composition;
