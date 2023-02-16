@@ -7,7 +7,9 @@ ifneq ($(TARGET_HAS_LOW_RAM),true)
 PRODUCT_COPY_FILES += hardware/qcom/display/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
 
 #Clstc library config xml file
-PRODUCT_COPY_FILES += hardware/qcom/display/config/clstc_config_library.xml:$(TARGET_COPY_OUT_VENDOR)/etc/clstc_config_library.xml
+ifeq (,$(wildcard $(QCPATH)/display-prebuilts-noship))
+    PRODUCT_COPY_FILES += hardware/qcom/display/config/clstc_config_library.xml:$(TARGET_COPY_OUT_VENDOR)/etc/clstc_config_library.xml
+endif
 endif
 
 #QDCM calibration json file for r66451 panel
