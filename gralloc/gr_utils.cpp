@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -2132,6 +2132,10 @@ void GetDRMFormat(uint32_t format, uint32_t flags, uint32_t *drm_format,
       break;
     case static_cast<uint32_t>(PixelFormat::RGBA_FP16):
       *drm_format = DRM_FORMAT_ABGR16161616F;
+      break;
+    case HAL_PIXEL_FORMAT_R_8:
+    case static_cast<uint32_t>(aidl::android::hardware::graphics::common::PixelFormat::R_8):
+      *drm_format = DRM_FORMAT_R8;
       break;
     default:
       ALOGE("%s: Unsupported format %d", __FUNCTION__, format);

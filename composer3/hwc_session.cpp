@@ -20,7 +20,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -846,6 +846,11 @@ HWC3::Error HWCSession::GetReleaseFences(Display display, uint32_t *out_num_elem
                              out_fences);
 }
 
+HWC3::Error HWCSession::getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
+                                                    AlphaInterpretation *alpha) {
+  return CallDisplayFunction(display, &HWCDisplay::getDisplayDecorationSupport, format, alpha);
+}
+
 void HWCSession::PerformQsyncCallback(Display display, bool qsync_enabled, uint32_t refresh_rate,
                                       uint32_t qsync_refresh_rate) {
   // AIDL callback
@@ -1202,6 +1207,10 @@ HWC3::Error HWCSession::SetLayerFlag(Display display, LayerId layer, LayerFlag f
 HWC3::Error HWCSession::SetLayerColorTransform(Display display, LayerId layer,
                                                const float *matrix) {
   return CallLayerFunction(display, layer, &HWCLayer::SetLayerColorTransform, matrix);
+}
+
+HWC3::Error HWCSession::SetLayerBrightness(Display display, LayerId layer, float brightness) {
+  return CallLayerFunction(display, layer, &HWCLayer::SetLayerBrightness, brightness);
 }
 
 HWC3::Error HWCSession::SetDisplayElapseTime(Display display, uint64_t time) {

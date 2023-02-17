@@ -15,16 +15,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -532,6 +528,8 @@ HWC3::Error HWCLayer::SetLayerCompositionType(Composition type) {
       break;
     case Composition::CURSOR:
       break;
+    case Composition::DISPLAY_DECORATION:
+      break;
     case Composition::INVALID:
       return HWC3::Error::BadParameter;
     default:
@@ -819,6 +817,22 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
   return HWC3::Error::None;
 }
 
+HWC3::Error HWCLayer::SetLayerBrightness(float brightness) {
+  if (brightness < 0.0f || brightness > 1.0f) {
+    DLOGE("Invalid brightness = %f", brightness);
+    return HWC3::Error::BadParameter;
+  }
+
+  if (layer_->layer_brightness != brightness) {
+    DLOGV_IF(kTagClient, "Update layer brightness from %f to %f", layer_->layer_brightness,
+             brightness);
+    layer_->layer_brightness = brightness;
+    geometry_changes_ |= kLayerBrightness;
+  }
+
+  return HWC3::Error::None;
+}
+
 void HWCLayer::SetRect(const Rect &source, LayerRect *target) {
   target->left = FLOAT(source.left);
   target->top = FLOAT(source.top);
@@ -981,6 +995,9 @@ LayerBufferFormat HWCLayer::GetSDMFormat(const int32_t &source, const int flags)
       break;
     case static_cast<int>(PixelFormat::RGBA_FP16):
       format = kFormatRGBA16161616F;
+      break;
+    case static_cast<int>(PixelFormat_V3::R_8):
+      format = kFormatA8;
       break;
     default:
       DLOGW("Unsupported format type = %d", source);

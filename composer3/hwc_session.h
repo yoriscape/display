@@ -20,7 +20,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -229,6 +229,8 @@ class HWCSession : HWCUEventListener,
   HWC3::Error SetColorModeWithRenderIntent(Display display, int32_t /*ColorMode*/ int_mode,
                                            int32_t /*RenderIntent*/ int_render_intent);
   HWC3::Error SetColorTransform(Display display, const std::vector<float> &matrix);
+  HWC3::Error getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
+                                          AlphaInterpretation *alpha);
   HWC3::Error GetReadbackBufferAttributes(Display display, int32_t *format, int32_t *dataspace);
   HWC3::Error SetReadbackBuffer(Display display, const native_handle_t *buffer,
                                 const shared_ptr<Fence> &acquire_fence);
@@ -305,6 +307,7 @@ class HWCSession : HWCUEventListener,
   HWC3::Error SetLayerPerFrameMetadataBlobs(Display display, LayerId layer, uint32_t num_elements,
                                             const int32_t *int_keys, const uint32_t *sizes,
                                             const uint8_t *metadata);
+  HWC3::Error SetLayerBrightness(Display display, LayerId layer, float brightness);
   HWC3::Error SetDisplayedContentSamplingEnabled(Display display, bool enabled,
                                                  uint8_t component_mask, uint64_t max_frames);
   HWC3::Error GetDisplayedContentSamplingAttributes(Display display, int32_t *format,

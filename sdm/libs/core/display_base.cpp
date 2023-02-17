@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -125,6 +125,7 @@ DisplayError DisplayBase::Init() {
   DisplayError error = kErrorNone;
   hw_panel_info_ = HWPanelInfo();
   hw_intf_->GetHWPanelInfo(&hw_panel_info_);
+  default_panel_mode_ = hw_panel_info_.mode;
   if (hw_info_intf_) {
     hw_info_intf_->GetHWResourceInfo(&hw_resource_info_);
   }
@@ -415,6 +416,19 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
       DLOGE("Failed to create DemuraTnFactory");
       return kErrorResources;
     }
+  }
+
+  GetFeatureLicenseFactory get_feature_license_factory_ptr = nullptr;
+  if (!feature_impl_lib.Sym(GET_FEATURE_LICENSE_FACTORY,
+                            reinterpret_cast<void **>(&get_feature_license_factory_ptr))) {
+    DLOGW("Unable to load symbols, error = %s", feature_impl_lib.Error());
+    return kErrorUndefined;
+  }
+
+  feature_license_factory_ = get_feature_license_factory_ptr();
+  if (!feature_license_factory_) {
+    DLOGE("Failed to create FeatureLicenseFactory");
+    return kErrorResources;
   }
 
   DLOGI("Setup pf factory and prop intf for Panel Features");
@@ -1968,6 +1982,7 @@ DisplayError DisplayBase::SetActiveConfig(uint32_t index) {
     return error;
   }
 
+  avoid_qsync_mode_change_ = true;
   active_refresh_rate_ = display_attributes.fps;
 
   return ReconfigureDisplay();
@@ -2540,6 +2555,9 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
   }
 
   LayerRect &roi = cwb_config->cwb_roi;
+  // Set cwb full rect as per window rect.
+  cwb_config->cwb_full_rect.right -= (window_rect_.left + window_rect_.right);
+  cwb_config->cwb_full_rect.bottom -= (window_rect_.top + window_rect_.bottom);
   LayerRect &full_frame = cwb_config->cwb_full_rect;
   uint32_t cwb_roi_supported = 0;  // Check whether CWB ROI is supported.
   IsSupportedOnDisplay(kCwbCrop, &cwb_roi_supported);
@@ -2581,7 +2599,8 @@ DisplayError DisplayBase::ValidateCwbConfigInfo(CwbConfig *cwb_config,
     DLOGI_IF(kTagDisplay, "Client provided invalid ROI. Going for Full frame CWB.");
     roi = full_frame;
   }
-
+  // Reposition CWB ROI as per window rect.
+  roi = Reposition(roi, window_rect_.left, window_rect_.top);
   DLOGI_IF(kTagDisplay, "Cwb_config: tap_point %d, CWB ROI Rect(%f %f %f %f), PU_as_CWB_ROI %d",
            tap_point, roi.left, roi.top, roi.right, roi.bottom, pu_as_cwb_roi);
 
@@ -3764,9 +3783,11 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
   DLOGI("Secure event %d for display %d-%d", secure_event, display_id_, display_type_);
 
   if (secure_event == kTUITransitionStart &&
-      (state_ != kStateOn || (pending_power_state_ != kPowerStateNone))) {
-    DLOGW("Cannot start TUI session when display state is %d or pending_power_state %d",
-          state_, pending_power_state_);
+      (state_ != kStateOn || (pending_power_state_ != kPowerStateNone) ||
+       (hw_panel_info_.mode != default_panel_mode_))) {
+    DLOGW("Cannot start TUI session when display state is %d or pending_power_state %d "
+          "or panel mode is changed; current panel mode = %d, panel mode during bootup = %d",
+           state_, pending_power_state_, hw_panel_info_.mode, default_panel_mode_);
     return kErrorPermission;
   }
   shared_ptr<Fence> release_fence = nullptr;

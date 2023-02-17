@@ -30,7 +30,7 @@
 /*
  *  Changes from Qualcomm Innovation Center are provided under the following license:
  *
- *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted (subject to the limitations in the
@@ -61,6 +61,12 @@
  *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define __STDC_FORMAT_MACROS
@@ -654,6 +660,13 @@ void HWDeviceDRM::GetCWBCapabilities() {
       has_dedicated_cwb_ =
           static_cast<bool>(iter.second.modes[current_mode_index_].has_dedicated_cwb);
       has_cwb_dither_ = static_cast<bool>(iter.second.has_cwb_dither);
+      if (!max_cwb_) {
+        auto &conn_mode = iter.second.modes[current_mode_index_];
+        if (has_dedicated_cwb_) {
+          max_cwb_ = (conn_mode.max_cwb >= INT32_MAX || !conn_mode.max_cwb) ? 1 : conn_mode.max_cwb;
+        }
+      }
+      DLOGI("Max supported CWB session = %d", max_cwb_);
       break;
     }
   }
@@ -3145,7 +3158,7 @@ bool HWDeviceDRM::SetupConcurrentWriteback(const HWLayersInfo &hw_layer_info, bo
 DisplayError HWDeviceDRM::SetupConcurrentWritebackModes() {
   // To setup Concurrent Writeback topology, get the Connector ID of Virtual display
   if (drm_mgr_intf_->RegisterDisplay(DRMDisplayType::VIRTUAL, &cwb_config_.token)) {
-    DLOGE("RegisterDisplay failed for Concurrent Writeback");
+    DLOGW("RegisterDisplay failed for Concurrent Writeback");
     return kErrorResources;
   }
 
@@ -3300,6 +3313,9 @@ DisplayError HWDeviceDRM::GetFeatureSupportStatus(const HWFeature feature, uint3
       break;
     case kHasDedicatedCwb:
       *status = UINT32(has_dedicated_cwb_);
+      break;
+    case kMaxSupportedCwb:
+      *status = max_cwb_;
       break;
     default:
       DLOGW("Unable to get status of feature : %d", feature);

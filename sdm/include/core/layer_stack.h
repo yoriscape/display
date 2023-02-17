@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -172,19 +172,20 @@ enum LayerUpdate {
 };
 
 enum GeometryChanges {
-  kNone         = 0x000,
-  kBlendMode    = 0x001,
-  kDataspace    = 0x002,
+  kNone = 0x000,
+  kBlendMode = 0x001,
+  kDataspace = 0x002,
   kDisplayFrame = 0x004,
-  kPlaneAlpha   = 0x008,
-  kSourceCrop   = 0x010,
-  kTransform    = 0x020,
-  kZOrder       = 0x040,
-  kAdded        = 0x080,
-  kRemoved      = 0x100,
+  kPlaneAlpha = 0x008,
+  kSourceCrop = 0x010,
+  kTransform = 0x020,
+  kZOrder = 0x040,
+  kAdded = 0x080,
+  kRemoved = 0x100,
   kBufferGeometry = 0x200,
   kColorTransform = 0x400,
-  kDefault      = 0xFFFF,
+  kLayerBrightness = 0x800,
+  kDefault = 0xFFFF,
 };
 
 /*! @brief This structure defines rotation and flip values for a display layer.
@@ -526,6 +527,7 @@ struct Layer {
                                                    //!< if LayerStackFlag layer_id_support is True.
 
   std::string layer_name = "";                     //!< Layer full name
+  float layer_brightness = 1.0;                    //!< Layer brightness
 };
 
 /*! @brief This structure defines the color space + transfer of a given layer.

@@ -17,7 +17,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -35,20 +35,21 @@
 // TODO: Change to HWC3 namespace
 namespace sdm {
 
-using aidl::android::hardware::graphics::composer3::IComposerClient;
-using aidl::android::hardware::graphics::composer3::PowerMode;
-using aidl::android::hardware::graphics::composer3::Composition;
-using aidl::android::hardware::graphics::composer3::ColorMode;
-using aidl::android::hardware::graphics::composer3::Capability;
-using aidl::android::hardware::graphics::composer3::DisplayRequest;
-using aidl::android::hardware::graphics::composer3::FormatColorComponent;
-using aidl::android::hardware::graphics::composer3::VsyncPeriodChangeTimeline;
-using aidl::android::hardware::graphics::common::Transform;
+using aidl::android::hardware::graphics::common::AlphaInterpretation;
 using aidl::android::hardware::graphics::common::BlendMode;
 using aidl::android::hardware::graphics::common::ColorTransform;
-using aidl::android::hardware::graphics::common::Rect;
-using aidl::android::hardware::graphics::common::FRect;
 using aidl::android::hardware::graphics::common::Dataspace;
+using aidl::android::hardware::graphics::common::FRect;
+using aidl::android::hardware::graphics::common::Rect;
+using aidl::android::hardware::graphics::common::Transform;
+using aidl::android::hardware::graphics::composer3::Capability;
+using aidl::android::hardware::graphics::composer3::ColorMode;
+using aidl::android::hardware::graphics::composer3::Composition;
+using aidl::android::hardware::graphics::composer3::DisplayRequest;
+using aidl::android::hardware::graphics::composer3::FormatColorComponent;
+using aidl::android::hardware::graphics::composer3::IComposerClient;
+using aidl::android::hardware::graphics::composer3::PowerMode;
+using aidl::android::hardware::graphics::composer3::VsyncPeriodChangeTimeline;
 
 using FColor = aidl::android::hardware::graphics::composer3::Color;
 
