@@ -1242,6 +1242,10 @@ HWC3::Error HWCSession::SetOutputBuffer(Display display, buffer_handle_t buffer,
 }
 
 HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
+  if (null_display_mode_) {
+    return HWC3::Error::None;
+  }
+
   if (display >= HWCCallbacks::kNumDisplays || !hwc_display_[display]) {
     return HWC3::Error::BadDisplay;
   }
