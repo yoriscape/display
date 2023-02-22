@@ -4487,26 +4487,23 @@ android::status_t HWCSession::GetDisplayPortId(uint32_t disp_id, int *port_id) {
 }
 
 HWC3::Error HWCSession::TeardownConcurrentWriteback(Display display) {
-  bool needs_refresh = false;
-  {
-    SEQUENCE_WAIT_SCOPE_LOCK(locker_[display]);
-    if (hwc_display_[display]) {
-      DisplayError error = hwc_display_[display]->TeardownConcurrentWriteback(&needs_refresh);
-      if (error != kErrorNone) {
-        return HWC3::Error::BadParameter;
-      }
-    }
-  }
-  if (!needs_refresh) {
-    return HWC3::Error::None;
+  if (!hwc_display_[display]) {
+    DLOGW("Invalid display (id = %d) detected as input parameter!", display);
   }
 
-  // Wait until concurrent WB teardown is complete
-  int error = WaitForCommitDone(display, kClientTeardownCWB);
-  if (error != 0) {
-    DLOGE("concurrent WB teardown failed with error %d", error);
-    return HWC3::Error::NoResources;
+  for (int id = 0; id < HWCCallbacks::kNumRealDisplays; id++) {
+    if (!hwc_display_[id]) {
+      continue;
+    }
+
+    int32_t display_type = 0;
+    SCOPE_LOCK(locker_[id]);
+    hwc_display_[id]->GetDisplayType(&display_type);
+    if (display_type == INT32(DisplayBasicType::kPhysical)) {
+      hwc_display_[id]->TeardownConcurrentWriteback();
+    }
   }
+
   return HWC3::Error::None;
 }
 

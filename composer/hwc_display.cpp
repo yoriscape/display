@@ -3152,19 +3152,16 @@ int HWCDisplay::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t *x_pixels
   return 0;
 }
 
-DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
-  if (!needs_refresh) {
-    return kErrorParameters;
+DisplayError HWCDisplay::TeardownConcurrentWriteback() {
+  if (!display_intf_->HandleCwbTeardown()) {
+    return kErrorNotSupported;
   }
 
   bool pending_cwb_request = false;
   {
-  std::unique_lock<std::mutex> lock(cwb_mutex_);
-  pending_cwb_request = !!cwb_buffer_map_.size();
+    std::unique_lock<std::mutex> lock(cwb_mutex_);
+    pending_cwb_request = !!cwb_buffer_map_.size();
   }
-
-  *needs_refresh = true;
-  display_intf_->HandleCwbTeardown();
 
   if (!pending_cwb_request) {
     dump_frame_count_ = 0;
@@ -3184,6 +3181,7 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
   }
+
   return kErrorNone;
 }
 

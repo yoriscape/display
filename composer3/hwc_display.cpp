@@ -3128,9 +3128,9 @@ int HWCDisplay::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t *x_pixels
   return 0;
 }
 
-DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
-  if (!needs_refresh) {
-    return kErrorParameters;
+DisplayError HWCDisplay::TeardownConcurrentWriteback() {
+  if (!display_intf_->HandleCwbTeardown()) {
+    return kErrorNotSupported;
   }
 
   bool pending_cwb_request = false;
@@ -3156,13 +3156,9 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
     output_buffer_base_ = nullptr;
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
-    *needs_refresh = false;
-    return kErrorNone;
-  } else {
-    *needs_refresh = true;
-    display_intf_->HandleCwbTeardown();
-    return kErrorNone;
   }
+
+  return kErrorNone;
 }
 
 void HWCDisplay::MMRMEvent(bool restricted) {

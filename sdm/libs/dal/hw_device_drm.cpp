@@ -3385,6 +3385,10 @@ DisplayError HWDeviceDRM::CancelDeferredPowerMode() {
 }
 
 void HWDeviceDRM::HandleCwbTeardown(bool sync_teardown) {
+  if (!cwb_config_.enabled) {
+    return;
+  }
+
   DLOGI("Pending CWB teardown on CRTC: %u", token_.crtc_id);
   pending_cwb_teardown_ = true;
   if (sync_teardown) {

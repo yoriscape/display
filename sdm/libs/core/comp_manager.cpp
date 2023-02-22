@@ -1023,9 +1023,7 @@ bool CompManager::HandleCwbTeardown(Handle display_ctx) {
   DisplayCompositionContext *display_comp_ctx =
       reinterpret_cast<DisplayCompositionContext *>(display_ctx);
 
-  cwb_mgr_intf_->TeardownCwb(display_comp_ctx->display_id);
-
-  return true;
+  return resource_intf_->HandleCwbTeardown(display_comp_ctx->display_resource_ctx);
 }
 
 DisplayError CompManager::RequestVirtualDisplayId(int32_t *vdisp_id) {

@@ -137,6 +137,7 @@ class ResourceInterface {
                                              DispLayerStack *disp_layer_stack) = 0;
   virtual bool ToneMapQueryRequested(Handle display_ctx) = 0;
   virtual DisplayError PreCommit(Handle display_ctx) = 0;
+  virtual bool HandleCwbTeardown(Handle display_ctx) = 0;
   virtual DisplayError RequestVirtualDisplayId(int32_t *vdisp_id) = 0;
   virtual DisplayError AllocateVirtualDisplayId(int32_t *vdisp_id) = 0;
   virtual DisplayError DeallocateVirtualDisplayId(int32_t vdisp_id) = 0;
