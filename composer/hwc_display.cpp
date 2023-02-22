@@ -1221,6 +1221,16 @@ HWC3::Error HWCDisplay::GetPerFrameMetadataKeys(uint32_t *out_num_keys,
   return HWC3::Error::None;
 }
 
+HWC3::Error HWCDisplay::SetDisplayAnimating(bool animating) {
+  // Trigger refresh, when animation ends.
+  if (!animating) {
+    callbacks_->Refresh(id_);
+  }
+
+  animating_ = animating;
+  return HWC3::Error::None;
+}
+
 HWC3::Error HWCDisplay::GetActiveConfig(Config *out_config) {
   if (out_config == nullptr) {
     return HWC3::Error::BadDisplay;

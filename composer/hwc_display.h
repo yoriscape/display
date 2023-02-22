@@ -376,10 +376,7 @@ class HWCDisplay : public DisplayEventHandler {
                                                   AlphaInterpretation *alpha);
   virtual HWC3::Error GetPerFrameMetadataKeys(uint32_t *out_num_keys,
                                               PerFrameMetadataKey *out_keys);
-  virtual HWC3::Error SetDisplayAnimating(bool animating) {
-    animating_ = animating;
-    return HWC3::Error::None;
-  }
+  virtual HWC3::Error SetDisplayAnimating(bool animating);
   virtual bool IsDisplayCommandMode();
   virtual HWC3::Error SetQSyncMode(QSyncMode qsync_mode) { return HWC3::Error::Unsupported; }
   virtual DisplayError ControlIdlePowerCollapse(bool enable, bool synchronous) {
