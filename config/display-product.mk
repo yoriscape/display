@@ -47,6 +47,9 @@ PRODUCT_COPY_FILES += hardware/qcom/display/config/backlight_calib_vtdr6130_amol
 #Smomo config xml file
 PRODUCT_COPY_FILES += hardware/qcom/display/config/smomo_setting.xml:$(TARGET_COPY_OUT_VENDOR)/etc/smomo_setting.xml
 
+#SDR Dimming config file
+PRODUCT_COPY_FILES += hardware/qcom/display/config/display_id_sample.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_sample.xml
+
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.demo.hdmirotationlock=false \
     persist.sys.sf.color_saturation=1.0 \
