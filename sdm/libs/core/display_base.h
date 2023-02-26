@@ -253,6 +253,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual bool HandleCwbTeardown();
   virtual uint32_t GetAvailableMixerCount();
   virtual DisplayError SetDemuraState(int state) { return kErrorNotSupported; }
+  virtual DisplayError SetDemuraConfig(int demura_idx) { return kErrorNotSupported; }
 
  protected:
   struct DisplayMutex {

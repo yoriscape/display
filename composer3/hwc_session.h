@@ -284,6 +284,7 @@ class HWCSession : HWCUEventListener,
   HWC3::Error GetClientTargetProperty(Display display,
                                       HwcClientTargetProperty *outClientTargetProperty);
   HWC3::Error SetDemuraState(Display display, int32_t state);
+  HWC3::Error SetDemuraConfig(Display display, int32_t demura_idx);
 
   // Layer functions
   HWC3::Error SetLayerBuffer(Display display, LayerId layer, buffer_handle_t buffer,
