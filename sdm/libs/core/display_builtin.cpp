@@ -1320,7 +1320,7 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
 
 void DisplayBuiltIn::IdleTimeout() {
   DTRACE_SCOPED();
-  if (state_ == kStateOff || hw_panel_info_.mode != kModeVideo) {
+  if (state_ == kStateOff) {
     return;
   }
 
@@ -1329,11 +1329,12 @@ void DisplayBuiltIn::IdleTimeout() {
   }
 
   handle_idle_timeout_ = true;
-  event_handler_->Refresh();
   if (!enhance_idle_time_) {
     comp_manager_->ProcessIdleTimeout(display_comp_ctx_);
   }
+
   validated_ = false;
+  event_handler_->Refresh();
 }
 
 void DisplayBuiltIn::PingPongTimeout() {

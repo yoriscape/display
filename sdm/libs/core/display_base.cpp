@@ -1379,11 +1379,16 @@ void DisplayBase::CommitThread() {
     disp_mutex_.worker_busy = false;
     disp_mutex_.worker_cv.notify_one();
 
+    auto timeout_at = WaitUntil();
+    auto wait_duration = timeout_at.time_since_epoch().count() -
+                         std::chrono::system_clock::now().time_since_epoch().count();
+
     // Wait for client thread to signal. Handle spurious interrupts.
-    if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, WaitUntil(), [this] {
-      return (disp_mutex_.worker_busy);
-    }))) {
-      DLOGI("Received idle timeout");
+    if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, timeout_at,
+                                           [this] { return (disp_mutex_.worker_busy); }))) {
+      DLOGI("Received idle timeout, panel: %s, timeout: %d us",
+            hw_panel_info_.mode == kModeVideo ? "video" : "cmd", wait_duration);
+
       event_handler_->HandleEvent(kIdleTimeout);
       IdleTimeout();
       continue;
@@ -4246,7 +4251,8 @@ std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
         hw_panel_info_.mode == kModeVideo ? "video" : "cmd");
 
   // Indefinite wait if state is off or idle timeout has triggered
-  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_) {
+  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_ ||
+      hw_panel_info_.mode != kModeVideo || pending_commit_) {
     timeout_time = std::chrono::system_clock::from_time_t(INT_MAX);
   } else {
     std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
