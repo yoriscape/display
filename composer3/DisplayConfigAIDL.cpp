@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -739,25 +739,11 @@ ScopedAStatus DisplayConfigAIDL::controlQsyncCallback(bool enable) {
 
 ScopedAStatus DisplayConfigAIDL::sendTUIEvent(DisplayType dpy, TUIEventType event_type) {
   int disp_id = MapDisplayType(dpy);
-
-  switch (event_type) {
-    case TUIEventType::PREPARE_TUI_TRANSITION:
-      hwc_session_->TUITransitionPrepare(disp_id);
-      break;
-
-    case TUIEventType::START_TUI_TRANSITION:
-      hwc_session_->TUITransitionStart(disp_id);
-      break;
-
-    case TUIEventType::END_TUI_TRANSITION:
-      hwc_session_->TUITransitionEnd(disp_id);
-      break;
-
-    default:
-      ALOGE("%s: Invalid event %d", __FUNCTION__, event_type);
-      return ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
+  int ret = hwc_session_->TUIEventHandler(disp_id, event_type);
+  if (ret != 0) {
+    ALOGW("TUIEventHandler failed with %d", ret);
+    return ScopedAStatus(AStatus_fromServiceSpecificError(ret));
   }
-
   return ScopedAStatus::ok();
 }
 

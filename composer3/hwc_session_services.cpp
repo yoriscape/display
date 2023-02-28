@@ -48,6 +48,8 @@
 
 #define __CLASS__ "HWCSession"
 
+typedef ::aidl::vendor::qti::hardware::display::config::DisplayType AIDLDisplayType;
+
 namespace sdm {
 
 void HWCSession::StartServices() {
@@ -78,6 +80,27 @@ int MapDisplayType(DispType dpy) {
   }
 
   return -EINVAL;
+}
+
+AIDLDisplayType MapDisplayId(int disp_id) {
+  switch (disp_id) {
+    case qdutils::DISPLAY_PRIMARY:
+      return AIDLDisplayType::PRIMARY;
+
+    case qdutils::DISPLAY_EXTERNAL:
+      return AIDLDisplayType::EXTERNAL;
+
+    case qdutils::DISPLAY_VIRTUAL:
+      return AIDLDisplayType::VIRTUAL;
+
+    case qdutils::DISPLAY_BUILTIN_2:
+      return AIDLDisplayType::BUILTIN2;
+
+    default:
+      break;
+  }
+
+  return AIDLDisplayType::INVALID;
 }
 
 bool WaitForResourceNeeded(PowerMode prev_mode, PowerMode new_mode) {
@@ -702,6 +725,25 @@ int HWCSession::NotifyResolutionChange(int32_t disp_id, Attributes &attr) {
     }
   }
 
+  return 0;
+}
+
+int HWCSession::NotifyTUIEventDone(int disp_id, TUIEventType event_type) {
+  int ret = 0;
+  {
+    std::chrono::milliseconds span(2000);
+    std::lock_guard<std::mutex> guard(tui_handler_lock_);
+    ret = (tui_event_handler_future_.wait_for(span) == std::future_status::timeout)
+              ? -ETIMEDOUT
+              : tui_event_handler_future_.get();
+  }
+  std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
+  AIDLDisplayType disp_type = MapDisplayId(disp_id);
+  for (auto const &[id, callback] : callback_clients_) {
+    if (callback) {
+      callback->notifyTUIEventDone(ret, disp_type, event_type);
+    }
+  }
   return 0;
 }
 
