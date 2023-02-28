@@ -2498,6 +2498,9 @@ bool getGralloc4Array(MetaData_t *metadata, int64_t paramType) {
     case QTI_BUFFER_TYPE:
     case (int64_t)StandardMetadataType::DATASPACE:
     case (int64_t)StandardMetadataType::PLANE_LAYOUTS:
+#ifdef QTI_HEAP_NAME
+    case QTI_HEAP_NAME:
+#endif
 #ifdef QTI_MEM_HANDLE
     case QTI_MEM_HANDLE:
 #endif
@@ -3464,6 +3467,16 @@ Error GetMetaDataInternal(void *buffer, int64_t type, void *in, void **out) {
       }
       break;
 #endif
+#ifdef QTI_HEAP_NAME
+    case QTI_HEAP_NAME: {
+      if (copy) {
+        *(reinterpret_cast<std::string *>(in)) = data->heapName;
+      } else {
+        *out = &data->heapName;
+      }
+      break;
+    }
+#endif
     default:
       ALOGD_IF(DEBUG, "Unsupported metadata type %d", type);
       ret = Error::BAD_VALUE;
@@ -3517,6 +3530,9 @@ void setGralloc4Array(MetaData_t *metadata, int64_t paramType, bool isSet) {
     case QTI_ALIGNED_WIDTH_IN_PIXELS:
     case QTI_ALIGNED_HEIGHT_IN_PIXELS:
     case QTI_MEM_HANDLE:
+#ifdef QTI_HEAP_NAME
+    case QTI_HEAP_NAME:
+#endif
       break;
     default:
       ALOGE("paramType %d not supported in Gralloc4", paramType);

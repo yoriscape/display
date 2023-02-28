@@ -728,6 +728,12 @@ Error BufferManager::AllocateBuffer(const BufferDescriptor &descriptor, buffer_h
   metadata->crop.right = hnd->width;
   metadata->crop.bottom = hnd->height;
 
+#ifdef QTI_HEAP_NAME
+  auto heap_name_length = std::min(data.heap_name.size(), size_t(MAX_NAME_LEN - 1));
+  heap_name_length = data.heap_name.copy(metadata->heapName, heap_name_length);
+  metadata->heapName[heap_name_length] = '\0';
+#endif
+
   UnmapAndReset(hnd);
 
   *handle = hnd;
@@ -1420,6 +1426,16 @@ Error BufferManager::GetMetadata(private_handle_t *handle, int64_t metadatatype_
                                       buf->custom_content_md_size, out);
       break;
 #endif
+#ifdef QTI_HEAP_NAME
+    case QTI_HEAP_NAME:
+      if (metadata_ptr != nullptr) {
+        std::string heap_name(reinterpret_cast<char *>(metadata_ptr));
+        android::gralloc4::encodeString(qtigralloc::MetadataType_HeapName, heap_name, out);
+      } else {
+        return Error::BAD_VALUE;
+      }
+      break;
+#endif
     default:
       error = Error::UNSUPPORTED;
   }
@@ -1469,6 +1485,9 @@ Error BufferManager::SetMetadata(private_handle_t *handle, int64_t metadatatype_
     case QTI_PRIVATE_FLAGS:
     case QTI_ALIGNED_WIDTH_IN_PIXELS:
     case QTI_ALIGNED_HEIGHT_IN_PIXELS:
+#ifdef QTI_HEAP_NAME
+    case QTI_HEAP_NAME:
+#endif
 #ifdef QTI_CUSTOM_DIMENSIONS_STRIDE
     case QTI_CUSTOM_DIMENSIONS_STRIDE:
 #endif
