@@ -275,6 +275,11 @@ struct LayerFlags {
       uint32_t skip_iwe : 1;
                               //!< This flag shall be set to indicate that this layer
                               //!< is handled by IWE for two phase composition.
+      // clang-format off
+      uint32_t front_buffer : 1;
+                              //!< This flag shall be set by client to indicate that the layer
+                              //!< is used for front-buffer rendering
+      // clang-format on
     };
 
     uint32_t flags = 0;       //!< For initialization purpose only.
@@ -405,6 +410,8 @@ struct LayerStackFlags {
       uint32_t iwe_present : 1;  //!< This flag shall be set to true to indicate stack has iwe layer
 
       bool default_strategy: 1;  //!< This flag indicates the default strategy usage.
+
+      uint32_t front_buffer_layer_present : 1;  //!< Set if stack has front buffer layer.
     };
 
     uint32_t flags = 0;               //!< For initialization purpose only.

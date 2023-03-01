@@ -221,6 +221,9 @@
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
+// clang-format off
+#define DISABLE_IDLE_FRONT_BUFFER            DISPLAY_PROP("disable_idle_front_buffer")
+// clang-format on
 
 // Add all other.properties above
 // End of property

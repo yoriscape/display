@@ -29,6 +29,7 @@
 
 #include <QService.h>
 #include <android/hardware/graphics/common/1.2/types.h>
+#include <aidl/android/hardware/graphics/common/BufferUsage.h>
 #include <core/core_interface.h>
 #include <private/color_params.h>
 #include <sys/stat.h>

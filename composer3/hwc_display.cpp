@@ -753,6 +753,13 @@ void HWCDisplay::BuildLayerStack() {
       layer_stack_.flags.scaling_rgb_layer_present = true;
     }
 
+    if (layer->input_buffer.usage &
+        static_cast<uint64_t>(
+            ::aidl::android::hardware::graphics::common::BufferUsage::FRONT_BUFFER)) {
+      layer->flags.front_buffer = true;
+      layer_stack_.flags.front_buffer_layer_present = true;
+    }
+
     if (hwc_layer->IsSingleBuffered() &&
         !(hwc_layer->IsRotationPresent() || hwc_layer->IsScalingPresent())) {
       layer->flags.single_buffer = true;
@@ -2529,11 +2536,12 @@ bool HWCDisplay::IsLayerUpdating(HWCLayer *hwc_layer) {
   auto layer = hwc_layer->GetSDMLayer();
   // Layer should be considered updating if
   //   a) layer is in single buffer mode, or
-  //   b) valid dirty_regions(android specific hint for updating status), or
-  //   c) layer stack geometry has changed (TODO(user): Remove when SDM accepts
+  //   b) layer is front buffer rendering, or
+  //   c) valid dirty_regions(android specific hint for updating status), or
+  //   d) layer stack geometry has changed (TODO(user): Remove when SDM accepts
   //      geometry_changed as bit fields).
-  return (layer->flags.single_buffer || hwc_layer->IsSurfaceUpdated() ||
-          hwc_layer->GetGeometryChanges());
+  return (layer->flags.single_buffer || layer->flags.front_buffer ||
+          hwc_layer->IsSurfaceUpdated() || hwc_layer->GetGeometryChanges());
 }
 
 DisplayClass HWCDisplay::GetDisplayClass() {
