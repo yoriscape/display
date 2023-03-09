@@ -136,6 +136,7 @@
 #define FORCE_TONEMAPPING                    DISPLAY_PROP("force_tonemapping")
 // Allows color management(tonemapping) in native mode (native mode is considered BT709+sRGB)
 #define ALLOW_TONEMAP_NATIVE                 DISPLAY_PROP("allow_tonemap_native")
+#define ENABLE_METADATA_DUMPING              DISPLAY_PROP("enable_metadata_dump")
 
 // RC
 #define ENABLE_ROUNDED_CORNER                DISPLAY_PROP("enable_rounded_corner")
