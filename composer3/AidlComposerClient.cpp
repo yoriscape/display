@@ -625,6 +625,9 @@ ScopedAStatus AidlComposerClient::setReadbackBuffer(
     return TO_BINDER_STATUS(INT32(error));
   }
 
+  // Cleanup orginally cloned handle from in_buffer
+  native_handle_delete(const_cast<native_handle_t *>(buffer));
+
   error = hwc_session_->SetReadbackBuffer(in_display, readback_buffer, fence);
   return TO_BINDER_STATUS(INT32(error));
 }
@@ -839,6 +842,7 @@ void AidlComposerClient::CommandEngine::executeSetClientTarget(int64_t display,
   bool useCache = !command.buffer.handle;
   buffer_handle_t clientTarget =
       useCache ? nullptr : ::android::makeFromAidl(*command.buffer.handle);
+  native_handle_t *clientTargetClone = const_cast<native_handle_t *>(clientTarget);
   shared_ptr<Fence> fence = nullptr;
   auto &sfd = const_cast<::ndk::ScopedFileDescriptor &>(command.buffer.fence);
   auto fd = sfd.get();
@@ -863,6 +867,10 @@ void AidlComposerClient::CommandEngine::executeSetClientTarget(int64_t display,
       err = updateBufErr;
     }
   }
+
+  // Cleanup orginally cloned handle from the input
+  native_handle_delete(clientTargetClone);
+
   if (err != Error::None) {
     writeError(__FUNCTION__, err);
   }
@@ -885,6 +893,7 @@ void AidlComposerClient::CommandEngine::executeSetOutputBuffer(uint64_t display,
                                                                const Buffer &buffer) {
   bool useCache = !buffer.handle;
   buffer_handle_t outputBuffer = useCache ? nullptr : ::android::makeFromAidl(*buffer.handle);
+  native_handle_t *outputBufferClone = const_cast<native_handle_t *>(outputBuffer);
   shared_ptr<Fence> fence = nullptr;
   auto &sfd = const_cast<::ndk::ScopedFileDescriptor &>(buffer.fence);
   auto fd = sfd.get();
@@ -906,6 +915,9 @@ void AidlComposerClient::CommandEngine::executeSetOutputBuffer(uint64_t display,
       err = updateBufErr;
     }
   }
+
+  // Cleanup orginally cloned handle from the input
+  native_handle_delete(outputBufferClone);
 
   if (err != Error::None) {
     writeError(__FUNCTION__, err);
@@ -1000,6 +1012,7 @@ void AidlComposerClient::CommandEngine::executeSetLayerBuffer(int64_t display, i
                                                               const Buffer &buffer) {
   bool useCache = !buffer.handle;
   buffer_handle_t layerBuffer = useCache ? nullptr : ::android::makeFromAidl(*buffer.handle);
+  native_handle_t *layerBufferClone = const_cast<native_handle_t *>(layerBuffer);
   shared_ptr<Fence> fence = nullptr;
   auto &sfd = const_cast<::ndk::ScopedFileDescriptor &>(buffer.fence);
   auto fd = sfd.get();
@@ -1021,6 +1034,10 @@ void AidlComposerClient::CommandEngine::executeSetLayerBuffer(int64_t display, i
       error = updateBufErr;
     }
   }
+
+  // Cleanup orginally cloned handle from the input
+  native_handle_delete(layerBufferClone);
+
   if (error != Error::None) {
     writeError(__FUNCTION__, error);
   }
