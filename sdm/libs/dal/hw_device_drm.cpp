@@ -364,9 +364,9 @@ HWDeviceDRM::Registry::Registry(BufferAllocator *buffer_allocator) :
   }
 }
 
-void HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
+int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   uint32_t hw_layer_count = UINT32(hw_layers_info->hw_layers.size());
-
+  int err = 0;
   for (uint32_t i = 0; i < hw_layer_count; i++) {
     Layer &layer = hw_layers_info->hw_layers.at(i);
     LayerBuffer input_buffer = layer.input_buffer;
@@ -383,8 +383,12 @@ void HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
       input_buffer.width *= 2;
       input_buffer.height /= 2;
     }
-    MapBufferToFbId(&layer, input_buffer);
+    int ret = MapBufferToFbId(&layer, input_buffer);
+    if (!err) {
+      err = ret;
+    }
   }
+  return err;
 }
 
 int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, uint32_t *fb_id) {
@@ -417,9 +421,9 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, uint32_t *fb_id
   return ret;
 }
 
-void HWDeviceDRM::Registry::MapBufferToFbId(Layer* layer, const LayerBuffer &buffer) {
+int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buffer) {
   if (buffer.planes[0].fd < 0) {
-    return;
+    return 0;
   }
 
   uint64_t handle_id = buffer.handle_id;
@@ -435,7 +439,7 @@ void HWDeviceDRM::Registry::MapBufferToFbId(Layer* layer, const LayerBuffer &buf
         if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height)) {
           layer->buffer_map->buffer_map[handle_id] = output_buffer_map_[handle_id];
           // Found fb_id for given handle_id key
-          return;
+          return 0;
         }
       }
     }
@@ -444,7 +448,7 @@ void HWDeviceDRM::Registry::MapBufferToFbId(Layer* layer, const LayerBuffer &buf
       FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(it->second.get());
       if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height)) {
         // Found fb_id for given handle_id key
-        return;
+        return 0;
       } else {
         // Erase from fb_id map if format or size have been modified
         layer->buffer_map->buffer_map.erase(it);
@@ -458,11 +462,13 @@ void HWDeviceDRM::Registry::MapBufferToFbId(Layer* layer, const LayerBuffer &buf
   }
 
   uint32_t fb_id = 0;
-  if (CreateFbId(buffer, &fb_id) >= 0) {
-    // Create and cache the fb_id in map
-    layer->buffer_map->buffer_map[handle_id] = std::make_shared<FrameBufferObject>(fb_id,
-        buffer.format, buffer.width, buffer.height);
+  if (CreateFbId(buffer, &fb_id) < 0) {
+    return -EINVAL;
   }
+  // Create and cache the fb_id in map
+  layer->buffer_map->buffer_map[handle_id] =
+      std::make_shared<FrameBufferObject>(fb_id, buffer.format, buffer.width, buffer.height);
+  return 0;
 }
 
 void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
@@ -1793,12 +1799,14 @@ DisplayError HWDeviceDRM::Validate(HWLayersInfo *hw_layers_info) {
   DTRACE_SCOPED();
 
   DisplayError err = kErrorNone;
-  registry_.Register(hw_layers_info);
-
+  int ret = registry_.Register(hw_layers_info);
+  if (ret) {
+    return kErrorParameters;
+  }
   Fence::ScopedRef scoped_ref;
   SetupAtomic(scoped_ref, hw_layers_info, true /* validate */, nullptr, nullptr);
 
-  int ret = drm_atomic_intf_->Validate();
+  ret = drm_atomic_intf_->Validate();
   if (ret) {
     DLOGE("failed with error %d for %s", ret, device_name_);
     DumpHWLayers(hw_layers_info);
