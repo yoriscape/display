@@ -74,11 +74,12 @@ namespace composer_V3 = aidl::android::hardware::graphics::composer3;
 using HwcDisplayCapability = composer_V3::DisplayCapability;
 using HwcDisplayConnectionType = composer_V3::DisplayConnectionType;
 using HwcClientTargetProperty = composer_V3::ClientTargetProperty;
+using ::aidl::vendor::qti::hardware::display::config::Attributes;
+using ::aidl::vendor::qti::hardware::display::config::CameraSmoothOp;
+using ::aidl::vendor::qti::hardware::display::config::DisplayPortType;
 using ::aidl::vendor::qti::hardware::display::config::IDisplayConfig;
 using ::aidl::vendor::qti::hardware::display::config::IDisplayConfigCallback;
-using ::aidl::vendor::qti::hardware::display::config::CameraSmoothOp;
-using ::aidl::vendor::qti::hardware::display::config::Attributes;
-using ::aidl::vendor::qti::hardware::display::config::DisplayPortType;
+using ::aidl::vendor::qti::hardware::display::config::TUIEventType;
 
 namespace aidl::vendor::qti::hardware::display::config {
 class DisplayConfigAIDL;
@@ -325,6 +326,7 @@ class HWCSession : HWCUEventListener,
                              int64_t *client_handle);
   int UnregisterCallbackClient(const int64_t client_handle);
   int NotifyResolutionChange(int32_t disp_id, Attributes &attr);
+  int NotifyTUIEventDone(int disp_id, TUIEventType event_type);
 
   virtual int RegisterClientContext(std::shared_ptr<DisplayConfig::ConfigCallback> callback,
                                     DisplayConfig::ConfigInterface **intf);
@@ -599,6 +601,7 @@ class HWCSession : HWCUEventListener,
   android::status_t SetPanelLuminanceAttributes(const android::Parcel *input_parcel);
   android::status_t setColorSamplingEnabled(const android::Parcel *input_parcel);
   android::status_t HandleTUITransition(int disp_id, int event);
+  android::status_t TUIEventHandler(int disp_id, TUIEventType event_type);
   android::status_t GetDisplayPortId(uint32_t display, int *port_id);
   android::status_t UpdateTransferTime(const android::Parcel *input_parcel);
   android::status_t RetrieveDemuraTnFiles(const android::Parcel *input_parcel);
@@ -694,6 +697,9 @@ class HWCSession : HWCUEventListener,
   std::map<Display, sdm::DisplayType> map_active_displays_;
   vector<HWDisplayInfo> virtual_display_list_ = {};
   std::map<hwc2_display_t, std::future<int>> commit_done_future_;
+  std::mutex tui_handler_lock_;
+  std::future<int> tui_event_handler_future_;
+  std::future<int> tui_callback_handler_future_;
 };
 }  // namespace sdm
 

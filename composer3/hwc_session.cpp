@@ -4174,21 +4174,61 @@ int HWCSession::WaitForVmRelease(Display display, int timeout_ms) {
 android::status_t HWCSession::HandleTUITransition(int disp_id, int event) {
   switch (event) {
     case qService::IQService::TUI_TRANSITION_PREPARE:
-      return TUITransitionPrepare(disp_id);
+      return TUIEventHandler(disp_id, TUIEventType::PREPARE_TUI_TRANSITION);
     case qService::IQService::TUI_TRANSITION_START:
-      return TUITransitionStart(disp_id);
+      return TUIEventHandler(disp_id, TUIEventType::START_TUI_TRANSITION);
     case qService::IQService::TUI_TRANSITION_END:
-      return TUITransitionEnd(disp_id);
+      return TUIEventHandler(disp_id, TUIEventType::END_TUI_TRANSITION);
     default:
       DLOGE("Invalid event %d", event);
       return -EINVAL;
   }
 }
 
-android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
-  // Hold this lock to until on going hotplug handling is complete before we start TUI session
-  SCOPE_LOCK(pluggable_handler_lock_);
+android::status_t HWCSession::TUIEventHandler(int disp_id, TUIEventType event_type) {
+  std::lock_guard<std::mutex> guard(tui_handler_lock_);
+  if (tui_event_handler_future_.valid()) {
+    std::future_status status = tui_event_handler_future_.wait_for(std::chrono::milliseconds(0));
+    if (status != std::future_status::ready) {
+      DLOGW("Event handler thread is busy with previous work!!");
+      return -EBUSY;
+    }
+  }
+  if (tui_callback_handler_future_.valid()) {
+    std::future_status status = tui_callback_handler_future_.wait_for(std::chrono::milliseconds(0));
+    if (status != std::future_status::ready) {
+      DLOGW("callback handler thread is busy with previous work!!");
+      return -EBUSY;
+    }
+  }
+  switch (event_type) {
+    case TUIEventType::PREPARE_TUI_TRANSITION:
+      tui_event_handler_future_ =
+          std::async([](HWCSession *session, int disp_id) { return 0; }, this, disp_id);
+      break;
+    case TUIEventType::START_TUI_TRANSITION:
+      tui_event_handler_future_ = std::async(
+          [](HWCSession *session, int disp_id) { return session->TUITransitionStart(disp_id); },
+          this, disp_id);
+      break;
+    case TUIEventType::END_TUI_TRANSITION:
+      tui_event_handler_future_ = std::async(
+          [](HWCSession *session, int disp_id) { return session->TUITransitionEnd(disp_id); }, this,
+          disp_id);
+      break;
+    default:
+      DLOGE("Invalid event %d", event_type);
+      return -EINVAL;
+  }
+  tui_callback_handler_future_ = std::async(
+      [](HWCSession *session, int disp_id, TUIEventType event_type) {
+        return session->NotifyTUIEventDone(disp_id, event_type);
+      },
+      this, disp_id, event_type);
+  return 0;
+}
 
+android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
   bool needs_refresh = false;
   Display target_display = GetDisplayIndex(disp_id);
   if (target_display == -1) {
@@ -4235,6 +4275,8 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
 }
 
 android::status_t HWCSession::TUITransitionStart(int disp_id) {
+  // Hold this lock to until on going hotplug handling is complete before we start TUI session
+  SCOPE_LOCK(pluggable_handler_lock_);
   if (TUITransitionPrepare(disp_id) != 0) {
     return -EINVAL;
   }
