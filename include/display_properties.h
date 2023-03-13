@@ -184,6 +184,7 @@
 #define ENABLE_VERBOSE_LOG                   DISPLAY_PROP("enable_verbose_log")
 // HDR10 GPU Target
 #define ENABLE_HDR10_GPU_TARGET              DISPLAY_PROP("enable_hdr10_gpu_target")
+#define MAX_SCALE_FACTOR_FOR_HDR_CLIENT      DISPLAY_PROP("max_scale_factor_for_hdr_client")
 // Client target bit depth
 #define CLIENT_TARGET_BIT_DEPTH              DISPLAY_PROP("client_target_bit_depth")
 
@@ -221,9 +222,7 @@
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
-// clang-format off
 #define DISABLE_IDLE_FRONT_BUFFER            DISPLAY_PROP("disable_idle_front_buffer")
-// clang-format on
 
 // Add all other.properties above
 // End of property
