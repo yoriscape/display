@@ -1361,10 +1361,17 @@ HWC3::Error HWCDisplay::SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_lay
   bool dump_output_to_file = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
   DLOGI("Requested o/p dump enable = %d", dump_output_to_file);
 
-  if (!count || (dump_output_to_file && (output_buffer_info_.alloc_buffer_info.fd >= 0))) {
-    DLOGW("FrameDump Not enabled Framecount = %d dump_output_to_file = %d o/p fd = %d", count,
-          dump_output_to_file, output_buffer_info_.alloc_buffer_info.fd);
+  if (!count) {
+    DLOGW("No frame will dump as requested output frame count = 0.");
     return HWC3::Error::None;
+  } else {
+    // If buffer is being freed, wait using lock synchronization before checking buffer.
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
+    if (dump_output_to_file && (output_buffer_info_.alloc_buffer_info.fd >= 0)) {
+      DLOGW("FrameDump Not enabled Framecount = %d dump_output_to_file = %d o/p fd = %d", count,
+            dump_output_to_file, output_buffer_info_.alloc_buffer_info.fd);
+      return HWC3::Error::None;
+    }
   }
 
   SetFrameDumpConfig(count, bit_mask_layer_type, format);
@@ -1390,28 +1397,34 @@ HWC3::Error HWCDisplay::SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_lay
   output_buffer_info_.buffer_config.buffer_count = 1;
   if (buffer_allocator_->AllocateBuffer(&output_buffer_info_) != 0) {
     DLOGE("Buffer allocation failed");
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
     output_buffer_info_ = {};
     return HWC3::Error::NoResources;
   }
+  DLOGI("Output Frame dumping buffer is allocated!");
 
   void *buffer = mmap(NULL, output_buffer_info_.alloc_buffer_info.size, PROT_READ | PROT_WRITE,
                       MAP_SHARED, output_buffer_info_.alloc_buffer_info.fd, 0);
 
   if (buffer == MAP_FAILED) {
     DLOGE("mmap failed with err %d", errno);
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
     buffer_allocator_->FreeBuffer(&output_buffer_info_);
     output_buffer_info_ = {};
     dump_frame_count_ = 0;
+    DLOGI("Output Frame dumping buffer is freed!");
     return HWC3::Error::NoResources;
   }
 
   const native_handle_t *handle = static_cast<native_handle_t *>(output_buffer_info_.private_data);
   HWC3::Error err = SetReadbackBuffer(handle, nullptr, cwb_config, kCWBClientFrameDump);
   if (err != HWC3::Error::None) {
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
     munmap(buffer, output_buffer_info_.alloc_buffer_info.size);
     buffer_allocator_->FreeBuffer(&output_buffer_info_);
     output_buffer_info_ = {};
     dump_frame_count_ = 0;
+    DLOGI("Output Frame dumping buffer is freed!");
     return err;
   }
   dump_output_to_file_ = dump_output_to_file;
@@ -3154,6 +3167,7 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback() {
   }
 
   if (!pending_cwb_request) {
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
     dump_frame_count_ = 0;
     dump_frame_index_ = 0;
     dump_output_to_file_ = false;
@@ -3170,6 +3184,7 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback() {
     output_buffer_base_ = nullptr;
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
+    DLOGI("Output Frame dumping buffer is freed!");
   }
 
   return kErrorNone;
@@ -3570,6 +3585,7 @@ void HWCDisplay::HandleFrameDump() {
   }
 
   if (stop_frame_dump) {
+    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
     dump_output_to_file_ = false;
     // Unmap and Free buffer
     if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
@@ -3585,6 +3601,7 @@ void HWCDisplay::HandleFrameDump() {
     output_buffer_cwb_config_ = {};
     dump_frame_count_ = 0;
     dump_frame_index_ = 0;
+    DLOGI("Output Frame dumping buffer is freed!");
   }
 }
 
