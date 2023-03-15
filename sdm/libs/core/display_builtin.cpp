@@ -1245,6 +1245,31 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness) {
     comp_manager_->SetBacklightLevel(display_comp_ctx_, level);
     DLOGI_IF(kTagDisplay, "Setting brightness to level %d (%f percent)", level,
              brightness * 100);
+
+    if (demura_intended_ && demura_dynamic_enabled_) {
+      if (!demura_) {
+        DLOGE("demura_ is nullptr");
+        return kErrorParameters;
+      }
+
+      GenericPayload pl;
+      int32_t *need_screen_refresh = nullptr;
+      int rc = 0;
+      if ((rc = pl.CreatePayload<int32_t>(need_screen_refresh))) {
+        DLOGE("Failed to create payload for need_screen_refresh, error = %d", rc);
+        return kErrorParameters;
+      }
+
+      rc = demura_->GetParameter(kDemuraFeatureParamNeedScreenRefresh, &pl);
+      if (rc) {
+        DLOGE("Failed to get need screen refresh, error %d", rc);
+        return kErrorParameters;
+      }
+
+      if (*need_screen_refresh) {
+        event_handler_->Refresh();
+      }
+    }
   } else if (err == kErrorDeferred) {
     // TODO(user): I8508d64a55c3b30239c6ed2886df391407d22f25 causes mismatch between perceived
     // power state and actual panel power state. Requires a rework. Below check will set up
