@@ -3342,12 +3342,17 @@ HWC3::Error HWCDisplay::SetReadbackBuffer(const native_handle_t *buffer,
   DisplayError error = kErrorNone;
   error = display_intf_->CaptureCwb(output_buffer, config);
   if (error) {
-    DLOGE("CaptureCwb failed");
     if (error == kErrorParameters) {
+      DLOGE("Invalid input parameter detected (display %d-%d)!", sdm_id_, type_);
       return HWC3::Error::BadParameter;
+    } else if (error == kErrorShutDown) {
+      DLOGW("Display %d-%d is not registered for readback!", sdm_id_, type_);
+    } else if (error == kErrorResources) {
+      DLOGW("Writeback block might busy or not available for display %d-%d!", sdm_id_, type_);
     } else {
-      return HWC3::Error::Unsupported;
+      DLOGW("Readback feature is not supported for display %d-%d!", sdm_id_, type_);
     }
+    return HWC3::Error::Unsupported;
   }
 
   {
@@ -3576,7 +3581,7 @@ void HWCDisplay::HandleFrameDump() {
         SetReadbackBuffer(hnd, nullptr, output_buffer_cwb_config_, kCWBClientFrameDump);
     if (err != HWC3::Error::None) {
       stop_frame_dump = true;
-      DLOGE("Unexpectedly stopped dumping of remaining %d frames for frame indices %d onwards!",
+      DLOGW("Unexpectedly stopped dumping of remaining %d frames for frame indices %d onwards!",
             dump_frame_count_, dump_frame_index_);
     } else {
       dump_frame_count_--;
