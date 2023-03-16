@@ -2213,8 +2213,12 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    // Option to include PU ROI in CWB ROI
-    cwb_config.pu_as_cwb_roi = static_cast<bool>(input_parcel->readInt32());
+    std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+    // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
+    cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+    // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
+    // corresponding bit of CWB flag.
+    cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
   }
 
   LayerRect &cwb_roi = cwb_config.cwb_roi;
