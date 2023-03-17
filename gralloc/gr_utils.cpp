@@ -677,6 +677,8 @@ void GetYuvSPPlaneInfo(const BufferInfo &info, int format, uint32_t width, uint3
       mmm_color_format =
           (info.usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_NV12_512 : MMM_COLOR_FMT_NV12;
       c_height = MMM_COLOR_FMT_UV_SCANLINES(mmm_color_format, height);
+      y_height = MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, height);
+      y_size = y_stride * y_height;
       c_size = c_stride * c_height;
       break;
     case HAL_PIXEL_FORMAT_NV12_HEIF:
