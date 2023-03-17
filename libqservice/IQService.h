@@ -69,6 +69,7 @@
 
 namespace qService {
 // ----------------------------------------------------------------------------
+// clang-format off
 
 class IQService : public android::IInterface
 {
@@ -148,7 +149,8 @@ public:
         DEBUG_CLIENT,
         DEBUG_DISPLAY,
         DEBUG_IWE,
-        DEBUG_MAX_VAL = DEBUG_IWE, // Used to check each bit of the debug command paramater.
+        DEBUG_WB_USAGE,
+        DEBUG_MAX_VAL = DEBUG_WB_USAGE, // Used to check each bit of the debug command paramater.
         // Update DEBUG_MAX_VAL when adding new debug tag.
     };
 
@@ -196,6 +198,7 @@ public:
 };
 
 // ----------------------------------------------------------------------------
+// clang-format on
 }; // namespace qService
 
 #endif // ANDROID_IQSERVICE_H
