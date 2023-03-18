@@ -328,6 +328,11 @@ int HWCSession::Init() {
   async_vds_creation_ = (value == 1);
   DLOGI("async_vds_creation: %d", async_vds_creation_);
 
+  value = 0;
+  Debug::Get()->GetProperty(DISABLE_GET_SCREEN_DECORATOR_SUPPORT, &value);
+  disable_get_screen_decorator_support_ = (value == 1);
+  DLOGI("disable_get_screen_decorator_support: %d", disable_get_screen_decorator_support_);
+
   DLOGI("Initializing supported display slots");
   InitSupportedDisplaySlots();
   DLOGI("Initializing supported display slots...done!");
@@ -838,6 +843,9 @@ HWC3::Error HWCSession::GetReleaseFences(Display display, uint32_t *out_num_elem
 
 HWC3::Error HWCSession::getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
                                                     AlphaInterpretation *alpha) {
+  if (disable_get_screen_decorator_support_) {
+    return HWC3::Error::Unsupported;
+  }
   return CallDisplayFunction(display, &HWCDisplay::getDisplayDecorationSupport, format, alpha);
 }
 

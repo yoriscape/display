@@ -700,6 +700,7 @@ class HWCSession : HWCUEventListener,
   std::mutex tui_handler_lock_;
   std::future<int> tui_event_handler_future_;
   std::future<int> tui_callback_handler_future_;
+  bool disable_get_screen_decorator_support_ = false;
 };
 }  // namespace sdm
 
