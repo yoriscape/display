@@ -195,6 +195,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError UpdateTransferTime(uint32_t transfer_time) override;
   DisplayError RetrieveDemuraTnFiles() override;
   DisplayError SetDemuraState(int state) override;
+  DisplayError SetDemuraConfig(int demura_idx) override;
 
   // Implement the HWEventHandlers
   DisplayError VSync(int64_t timestamp) override;
@@ -244,7 +245,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   void SendBacklight();
   void SendDisplayConfigs();
   bool CanLowerFps(bool idle_screen);
-  int SetDemuraIntfStatus(bool enable);
+  int SetDemuraIntfStatus(bool enable, int current_idx = kDemuraDefaultIdx);
   DisplayError HandleSPR();
   void CacheFrameROI();
   void PreCommit(LayerStack *layer_stack);
@@ -300,6 +301,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   Layer demura_layer_ = {};
   bool demura_intended_ = false;
   bool demura_dynamic_enabled_ = true;
+  int demura_current_idx_ = -1;
   bool enable_dpps_dyn_fps_ = false;
   HWDisplayMode last_panel_mode_ = kModeDefault;
   bool hdr_present_ = false;

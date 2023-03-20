@@ -1087,6 +1087,7 @@ enum DRMPanelFeatureID {
   kDRMPanelFeatureRCInit,
   kDRMPanelFeatureDemuraResources,
   kDRMPanelFeatureSPRUDC,
+  kDRMPanelFeatureDemuraCfg0Param2,
   kDRMPanelFeatureMax,
 };
 

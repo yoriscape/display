@@ -15,14 +15,13 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include "AidlComposerClient.h"
 #include "android/binder_auto_utils.h"
+#include <android/binder_ibinder_platform.h>
 namespace aidl {
 namespace vendor {
 namespace qti {
@@ -755,10 +754,15 @@ Error AidlComposerClient::CommandEngine::execute(const std::vector<DisplayComman
                      displayCmd.display, layerCmd.layer, *layerCmd.damage);
       ExecuteCommand(layerCmd.blendMode, &CommandEngine::executeSetLayerBlendMode,
                      displayCmd.display, layerCmd.layer, *layerCmd.blendMode);
-      ExecuteCommand(layerCmd.color, &CommandEngine::executeSetLayerColor, displayCmd.display,
-                     layerCmd.layer, *layerCmd.color);
       ExecuteCommand(layerCmd.composition, &CommandEngine::executeSetLayerComposition,
                      displayCmd.display, layerCmd.layer, *layerCmd.composition);
+      // AIDL definiton of LayerCommand Color which calls into executeSetLayerColor:
+      // Sets the color of the given layer. If the composition type of the layer is not
+      // Composition.SOLID_COLOR, this call must succeed and have no other effect.
+      // Since the function depends on composition type to be set, executeSetLayerColor
+      // has to be called after executeSetLayerComposition
+      ExecuteCommand(layerCmd.color, &CommandEngine::executeSetLayerColor, displayCmd.display,
+                     layerCmd.layer, *layerCmd.color);
       ExecuteCommand(layerCmd.dataspace, &CommandEngine::executeSetLayerDataspace,
                      displayCmd.display, layerCmd.layer, *layerCmd.dataspace);
       ExecuteCommand(layerCmd.displayFrame, &CommandEngine::executeSetLayerDisplayFrame,
@@ -1478,6 +1482,12 @@ Error AidlComposerClient::CommandEngine::updateBuffer(int64_t display, int64_t l
 
   *entry = handle;
   return Error::None;
+}
+
+SpAIBinder AidlComposerClient::createBinder() {
+  auto binder = BnComposerClient::createBinder();
+  AIBinder_setInheritRt(binder.get(), true);
+  return binder;
 }
 
 }  // namespace composer3

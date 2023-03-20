@@ -566,6 +566,8 @@ DisplayError DisplayBuiltIn::SetupDemura() {
     return kErrorUndefined;
   }
 
+  demura_current_idx_ = kDemuraDefaultIdx;
+
   comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
   demura_intended_ = true;
   DLOGI("Enabled Demura Core!");
@@ -731,7 +733,10 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
   panel_id_ = panel_id;
   DLOGI("panel_id 0x%lx", panel_id_);
 
-#ifndef SDM_UNIT_TESTING
+#if defined SDM_UNIT_TESTING || defined TRUSTED_VM
+  demura_allowed = true;
+  demuratn_allowed = true;
+#else
   if (!feature_license_factory_) {
     DLOGI("Feature license factory is not available");
     return kErrorNone;
@@ -788,9 +793,6 @@ DisplayError DisplayBuiltIn::SetupDemuraT0AndTn() {
     return kErrorUndefined;
   }
   demuratn_allowed = *allowed;
-#else
-  demura_allowed = true;
-  demuratn_allowed = true;
 #endif
 
   DLOGI("Demura enable allowed %d, Anti-aging enable allowed %d", demura_allowed, demuratn_allowed);
@@ -1090,9 +1092,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
 
   // Must only happen after NullCommit and get applied in next frame
   if (demura_intended_ && demura_dynamic_enabled_ &&
-      !comp_manager_->GetDemuraStatusForDisplay(display_id_) && (state == kStateOn)) {
+      !comp_manager_->GetDemuraStatusForDisplay(display_id_) &&
+      (state == kStateOn || state == kStateDoze)) {
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
-    SetDemuraIntfStatus(true);
+    SetDemuraIntfStatus(true, demura_current_idx_);
   }
 
   return kErrorNone;
@@ -1319,7 +1322,7 @@ void DisplayBuiltIn::SetVsyncStatus(bool enable) {
 
 void DisplayBuiltIn::IdleTimeout() {
   DTRACE_SCOPED();
-  if (state_ == kStateOff || hw_panel_info_.mode != kModeVideo) {
+  if (state_ == kStateOff) {
     return;
   }
 
@@ -1328,11 +1331,12 @@ void DisplayBuiltIn::IdleTimeout() {
   }
 
   handle_idle_timeout_ = true;
-  event_handler_->Refresh();
   if (!enhance_idle_time_) {
     comp_manager_->ProcessIdleTimeout(display_comp_ctx_);
   }
+
   validated_ = false;
+  event_handler_->Refresh();
 }
 
 void DisplayBuiltIn::PingPongTimeout() {
@@ -2571,7 +2575,7 @@ void DisplayBuiltIn::SendDisplayConfigs() {
   }
 }
 
-int DisplayBuiltIn::SetDemuraIntfStatus(bool enable) {
+int DisplayBuiltIn::SetDemuraIntfStatus(bool enable, int current_idx) {
   int ret = 0;
   bool *reconfig = nullptr;
   GenericPayload reconfig_pl;
@@ -2601,6 +2605,19 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable) {
     }
   }
 
+  GenericPayload config_pl;
+  uint64_t *config_idx = nullptr;
+  if ((ret = config_pl.CreatePayload<uint64_t>(config_idx))) {
+    DLOGE("Failed to create payload for config_idx, error = %d", ret);
+    return ret;
+  } else {
+    *config_idx = current_idx;
+    if ((ret = demura_->SetParameter(kDemuraFeatureParamConfigIdx, config_pl))) {
+      DLOGE("Failed to set Config Idx, error = %d", ret);
+      return ret;
+    }
+  }
+
   GenericPayload pl;
   bool* enable_ptr = nullptr;
   if ((ret = pl.CreatePayload<bool>(enable_ptr))) {
@@ -2622,7 +2639,7 @@ int DisplayBuiltIn::SetDemuraIntfStatus(bool enable) {
       return ret;
     }
   }
-  DLOGI("Demura is now %s", enable ? "Enabled" : "Disabled");
+  DLOGI("Demura is now %s and current index is %d ", enable ? "Enabled" : "Disabled", current_idx);
   return ret;
 }
 
@@ -2673,7 +2690,7 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
   if (secure_event == kTUITransitionEnd) {
     // enable demura after TUI transition end
     if (demura_) {
-      SetDemuraIntfStatus(true);
+      SetDemuraIntfStatus(true, demura_current_idx_);
     }
   }
 
@@ -3069,6 +3086,7 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
     }
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
     demura_dynamic_enabled_ = true;
+    demura_current_idx_ = kDemuraDefaultIdx;
   } else if (!state && comp_manager_->GetDemuraStatusForDisplay(display_id_)) {
     ret = SetDemuraIntfStatus(false);
     if (ret) {
@@ -3081,6 +3099,56 @@ DisplayError DisplayBuiltIn::SetDemuraState(int state) {
 
   // Disable Partial Update for one frame.
   DisablePartialUpdateOneFrameInternal();
+
+  return kErrorNone;
+}
+
+DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
+  int ret = 0;
+  GenericPayload pl;
+  uint64_t *idx = nullptr;
+
+  if (!demura_intended_ || !demura_dynamic_enabled_) {
+    DLOGW("Demura is not enabled");
+    return kErrorNone;
+  }
+
+  DLOGI("Setting the Demura Config, config = %d", demura_idx);
+
+  if (demura_idx < kDemuraDefaultIdx || demura_idx >= kMaxPanelConfigSupported) {
+    DLOGE("Invalid demura config index");
+    return kErrorParameters;
+  }
+
+  if (demura_idx == demura_current_idx_) {
+    return kErrorNone;
+  }
+
+  // Update demura config
+  if ((ret = pl.CreatePayload<uint64_t>(idx))) {
+    DLOGE("Failed to create payload for enable, error = %d", ret);
+    return kErrorUndefined;
+  }
+
+  *idx = demura_idx;
+  if ((ret = demura_->SetParameter(kDemuraFeatureParamConfigIdx, pl))) {
+    DLOGE("Failed to update demura config, error = %d", ret);
+    return kErrorUndefined;
+  }
+
+  if (SetupDemuraLayer() != kErrorNone) {
+    DLOGE("Unable to setup Demura layer on Display %d", display_id_);
+    return kErrorUndefined;
+  }
+
+  if (SetDemuraIntfStatus(true, demura_idx)) {
+    DLOGE("Failed to set Demura Status on Display %d", display_id_);
+    return kErrorUndefined;
+  }
+
+  demura_current_idx_ = demura_idx;
+  DLOGV("Demura config updated to config index %d", demura_idx);
+  event_handler_->Refresh();
 
   return kErrorNone;
 }

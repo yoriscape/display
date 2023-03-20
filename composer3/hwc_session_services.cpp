@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -47,6 +47,8 @@
 #include "hwc_debugger.h"
 
 #define __CLASS__ "HWCSession"
+
+typedef ::aidl::vendor::qti::hardware::display::config::DisplayType AIDLDisplayType;
 
 namespace sdm {
 
@@ -78,6 +80,27 @@ int MapDisplayType(DispType dpy) {
   }
 
   return -EINVAL;
+}
+
+AIDLDisplayType MapDisplayId(int disp_id) {
+  switch (disp_id) {
+    case qdutils::DISPLAY_PRIMARY:
+      return AIDLDisplayType::PRIMARY;
+
+    case qdutils::DISPLAY_EXTERNAL:
+      return AIDLDisplayType::EXTERNAL;
+
+    case qdutils::DISPLAY_VIRTUAL:
+      return AIDLDisplayType::VIRTUAL;
+
+    case qdutils::DISPLAY_BUILTIN_2:
+      return AIDLDisplayType::BUILTIN2;
+
+    default:
+      break;
+  }
+
+  return AIDLDisplayType::INVALID;
 }
 
 bool WaitForResourceNeeded(PowerMode prev_mode, PowerMode new_mode) {
@@ -705,6 +728,25 @@ int HWCSession::NotifyResolutionChange(int32_t disp_id, Attributes &attr) {
   return 0;
 }
 
+int HWCSession::NotifyTUIEventDone(int disp_id, TUIEventType event_type) {
+  int ret = 0;
+  {
+    std::chrono::milliseconds span(2000);
+    std::lock_guard<std::mutex> guard(tui_handler_lock_);
+    ret = (tui_event_handler_future_.wait_for(span) == std::future_status::timeout)
+              ? -ETIMEDOUT
+              : tui_event_handler_future_.get();
+  }
+  std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
+  AIDLDisplayType disp_type = MapDisplayId(disp_id);
+  for (auto const &[id, callback] : callback_clients_) {
+    if (callback) {
+      callback->notifyTUIEventDone(ret, disp_type, event_type);
+    }
+  }
+  return 0;
+}
+
 int HWCSession::RegisterCallbackClient(const std::shared_ptr<IDisplayConfigCallback> &callback,
                                        int64_t *client_handle) {
   std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
@@ -1068,11 +1110,6 @@ int HWCSession::DisplayConfigImpl::SetCWBOutputBuffer(uint32_t disp_id,
 
   if (!hwc_session_) {
     DLOGE("HWC Session is not established!");
-    return -1;
-  }
-
-  auto err = hwc_session_->CheckWbAvailability();
-  if (err != HWC3::Error::None) {
     return -1;
   }
 

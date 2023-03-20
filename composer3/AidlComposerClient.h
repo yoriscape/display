@@ -15,8 +15,6 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -82,8 +80,8 @@ using aidl::android::hardware::graphics::composer3::ParcelableComposition;
 using aidl::android::hardware::graphics::composer3::ParcelableDataspace;
 using aidl::android::hardware::graphics::composer3::ParcelableTransform;
 using aidl::android::hardware::graphics::composer3::PerFrameMetadata;
-using aidl::android::hardware::graphics::composer3::PerFrameMetadataKey;
 using aidl::android::hardware::graphics::composer3::PerFrameMetadataBlob;
+using aidl::android::hardware::graphics::composer3::PerFrameMetadataKey;
 using aidl::android::hardware::graphics::composer3::PlaneAlpha;
 using aidl::android::hardware::graphics::composer3::PowerMode;
 using aidl::android::hardware::graphics::composer3::ReadbackBufferAttributes;
@@ -92,8 +90,9 @@ using aidl::android::hardware::graphics::composer3::VirtualDisplay;
 using aidl::android::hardware::graphics::composer3::VsyncPeriodChangeConstraints;
 using aidl::android::hardware::graphics::composer3::VsyncPeriodChangeTimeline;
 using aidl::android::hardware::graphics::composer3::ZOrder;
-using ndk::ScopedAStatus;
 using ::android::hardware::hidl_handle;
+using ndk::ScopedAStatus;
+using ndk::SpAIBinder;
 
 using std::shared_ptr;
 using sdm::HWCSession;
@@ -213,6 +212,9 @@ class AidlComposerClient : public BnComposerClient {
   // Methods for ConcurrentWriteBack
   Error getDisplayReadbackBuffer(int64_t display, const native_handle_t *rawHandle,
                                  const native_handle_t **outHandle);
+
+ protected:
+  SpAIBinder createBinder() override;
 
  private:
   struct LayerBuffers {

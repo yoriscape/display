@@ -7,7 +7,9 @@ ifneq ($(TARGET_HAS_LOW_RAM),true)
 PRODUCT_COPY_FILES += hardware/qcom/display/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
 
 #Clstc library config xml file
-PRODUCT_COPY_FILES += hardware/qcom/display/config/clstc_config_library.xml:$(TARGET_COPY_OUT_VENDOR)/etc/clstc_config_library.xml
+ifeq (,$(wildcard $(QCPATH)/display-prebuilts-noship))
+    PRODUCT_COPY_FILES += hardware/qcom/display/config/clstc_config_library.xml:$(TARGET_COPY_OUT_VENDOR)/etc/clstc_config_library.xml
+endif
 endif
 
 #QDCM calibration json file for r66451 panel
@@ -47,6 +49,9 @@ PRODUCT_COPY_FILES += hardware/qcom/display/config/backlight_calib_vtdr6130_amol
 #Smomo config xml file
 PRODUCT_COPY_FILES += hardware/qcom/display/config/smomo_setting.xml:$(TARGET_COPY_OUT_VENDOR)/etc/smomo_setting.xml
 
+#SDR Dimming config file
+PRODUCT_COPY_FILES += hardware/qcom/display/config/display_id_sample.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_sample.xml
+
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.demo.hdmirotationlock=false \
     persist.sys.sf.color_saturation=1.0 \
@@ -67,7 +72,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
     vendor.display.enable_dpps_dynamic_fps=1 \
     debug.sf.disable_client_composition_cache=1 \
     debug.sf.enable_gl_backpressure=1 \
-    debug.sf.enable_hwc_vds=0 \
     debug.sf.enable_advanced_sf_phase_offset=1 \
     vendor.display.vds_allow_hwc=1 \
     debug.sf.use_phase_offsets_as_durations=1 \

@@ -103,6 +103,8 @@ int HWCDisplayPluggable::Init() {
   color_mode_ = new HWCColorMode(display_intf_);
   color_mode_->Init();
 
+  HWCDisplay::TryDrawMethod(DrawMethod::kUnifiedDraw);
+
   return status;
 }
 

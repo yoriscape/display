@@ -141,9 +141,15 @@ DisplayError DisplayBase::Init() {
   fb_config_ = display_attributes_;
   active_refresh_rate_ = display_attributes_.fps;
 
-  if (!Debug::GetMixerResolution(&mixer_attributes_.width, &mixer_attributes_.height)) {
-    if (hw_intf_->SetMixerAttributes(mixer_attributes_) == kErrorNone) {
-      custom_mixer_resolution_ = true;
+  windowed_display_ = Debug::GetWindowRect(true /*is_primary_*/ , &window_rect_.left,
+                                           &window_rect_.top, &window_rect_.right,
+                                           &window_rect_.bottom) == 0;
+
+  if (!windowed_display_) {
+    if (!Debug::GetMixerResolution(&mixer_attributes_.width, &mixer_attributes_.height)) {
+      if (hw_intf_->SetMixerAttributes(mixer_attributes_) == kErrorNone) {
+        custom_mixer_resolution_ = true;
+      }
     }
   }
 
@@ -246,9 +252,6 @@ DisplayError DisplayBase::InitBorderLayers() {
     return kErrorNone;
   }
 
-  windowed_display_ = Debug::GetWindowRect(true /*is_primary_*/ , &window_rect_.left,
-                                           &window_rect_.top, &window_rect_.right,
-                                           &window_rect_.bottom) == 0;
   if (!windowed_display_) {
     return kErrorNone;
   }
@@ -844,6 +847,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
 
   disp_layer_stack_.info.output_buffer = layer_stack->output_buffer;
   disp_layer_stack_.info.hw_cwb_config = layer_stack->cwb_config;
+  disp_layer_stack_.info.cwb_id = layer_stack->cwb_id;
 
   EnableLlccDuringAodMode(layer_stack);
 
@@ -1375,11 +1379,16 @@ void DisplayBase::CommitThread() {
     disp_mutex_.worker_busy = false;
     disp_mutex_.worker_cv.notify_one();
 
+    auto timeout_at = WaitUntil();
+    auto wait_duration = timeout_at.time_since_epoch().count() -
+                         std::chrono::system_clock::now().time_since_epoch().count();
+
     // Wait for client thread to signal. Handle spurious interrupts.
-    if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, WaitUntil(), [this] {
-      return (disp_mutex_.worker_busy);
-    }))) {
-      DLOGI("Received idle timeout");
+    if (!(disp_mutex_.worker_cv.wait_until(disp_mutex_.worker_mutex, timeout_at,
+                                           [this] { return (disp_mutex_.worker_busy); }))) {
+      DLOGI("Received idle timeout, panel: %s, timeout: %d us",
+            hw_panel_info_.mode == kModeVideo ? "video" : "cmd", wait_duration);
+
       event_handler_->HandleEvent(kIdleTimeout);
       IdleTimeout();
       continue;
@@ -1403,6 +1412,7 @@ DisplayError DisplayBase::SetUpCommit(LayerStack *layer_stack) {
   }
 
   disp_layer_stack_.info.output_buffer = layer_stack->output_buffer;
+  disp_layer_stack_.info.cwb_id = layer_stack->cwb_id;
   if (layer_stack->request_flags.trigger_refresh) {
     if (!disable_cwb_idle_fallback_ && disp_layer_stack_.info.output_buffer) {
       cwb_fence_wait_ = true;
@@ -2855,6 +2865,10 @@ DisplayError DisplayBase::ReconfigureMixer(uint32_t width, uint32_t height) {
   DisplayError error = kErrorNone;
 
   DTRACE_SCOPED();
+  if (windowed_display_) {
+    return kErrorNotSupported;
+  }
+
   if (!width || !height) {
     return kErrorParameters;
   }
@@ -4237,7 +4251,8 @@ std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
         hw_panel_info_.mode == kModeVideo ? "video" : "cmd");
 
   // Indefinite wait if state is off or idle timeout has triggered
-  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_) {
+  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_ ||
+      hw_panel_info_.mode != kModeVideo || pending_commit_) {
     timeout_time = std::chrono::system_clock::from_time_t(INT_MAX);
   } else {
     std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
@@ -4271,6 +4286,10 @@ void DisplayBase::NotifyCwbDone(int32_t status, const LayerBuffer& buffer) {
 
 void DisplayBase::Refresh() {
   event_handler_->Refresh();
+}
+
+void DisplayBase::OnCwbTeardown(bool sync_teardown) {
+  hw_intf_->HandleCwbTeardown(sync_teardown);
 }
 
 DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const CwbConfig &config) {
@@ -4311,7 +4330,8 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
 
   error = comp_manager_->CaptureCwb(display_comp_ctx_, output_buffer, cwb_config);
   if (error != kErrorNone) {
-    DLOGE("CWB config failed");
+    DLOGW("CWB request rejected for display %d-%d (Display Error code: %d).", display_id_,
+          display_type_, error);
     return error;
   }
 
@@ -4324,8 +4344,6 @@ bool DisplayBase::HandleCwbTeardown() {
   if (!hw_resource_info_.has_concurrent_writeback) {
     return false;
   }
-
-  hw_intf_->HandleCwbTeardown();
 
   return comp_manager_->HandleCwbTeardown(display_comp_ctx_);
 }

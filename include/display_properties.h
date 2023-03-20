@@ -37,6 +37,7 @@
 #ifndef __DISPLAY_PROPERTIES_H__
 #define __DISPLAY_PROPERTIES_H__
 
+// clang-format off
 #define DISP_PROP_PREFIX                     "vendor.display."
 #define GRALLOC_PROP_PREFIX                  "vendor.gralloc."
 #define PERSIST_DISP_PROP_PREFIX             "persist.vendor.display."
@@ -163,6 +164,7 @@
 #define ANTI_AGING_RECORD_TIMER              DISPLAY_PROP("demura_record_timer")
 #define ANTI_AGING_IDLE_TIMER                DISPLAY_PROP("demura_idle_timer")
 #define ANTI_AGING_MEMORY_SIZE               DISPLAY_PROP("demura_memory_size")
+#define ANTI_AGING_RECALIB_TIMER_DIVIDER     DISPLAY_PROP("demura_recalib_timer_divider")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")
@@ -182,11 +184,15 @@
 #define ENABLE_VERBOSE_LOG                   DISPLAY_PROP("enable_verbose_log")
 // HDR10 GPU Target
 #define ENABLE_HDR10_GPU_TARGET              DISPLAY_PROP("enable_hdr10_gpu_target")
+#define MAX_SCALE_FACTOR_FOR_HDR_CLIENT      DISPLAY_PROP("max_scale_factor_for_hdr_client")
 // Client target bit depth
 #define CLIENT_TARGET_BIT_DEPTH              DISPLAY_PROP("client_target_bit_depth")
 
 // Enable IWE
 #define ENABLE_INLINE_WRITEBACK              DISPLAY_PROP("enable_inline_writeback")
+
+// Configuration to reserve the writeback blocks for specific usage like CWB, IWE or WFD
+#define RESERVED_WRITEBACK_CONFIG            DISPLAY_PROP("reserved_writeback_config")
 
 // Add all vendor.display properties above
 
@@ -216,7 +222,9 @@
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
+#define DISABLE_IDLE_FRONT_BUFFER            DISPLAY_PROP("disable_idle_front_buffer")
 
 // Add all other.properties above
 // End of property
+// clang-format on
 #endif  // __DISPLAY_PROPERTIES_H__

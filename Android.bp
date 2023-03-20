@@ -94,7 +94,6 @@ qtidisplay_cc_defaults {
         "libcutils",
         "libutils",
     ],
-    clang: true,
     tidy: true,
     tidy_checks: [
         "-*",

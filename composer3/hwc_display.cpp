@@ -753,6 +753,13 @@ void HWCDisplay::BuildLayerStack() {
       layer_stack_.flags.scaling_rgb_layer_present = true;
     }
 
+    if (layer->input_buffer.usage &
+        static_cast<uint64_t>(
+            ::aidl::android::hardware::graphics::common::BufferUsage::FRONT_BUFFER)) {
+      layer->flags.front_buffer = true;
+      layer_stack_.flags.front_buffer_layer_present = true;
+    }
+
     if (hwc_layer->IsSingleBuffered() &&
         !(hwc_layer->IsRotationPresent() || hwc_layer->IsScalingPresent())) {
       layer->flags.single_buffer = true;
@@ -1401,7 +1408,7 @@ HWC3::Error HWCDisplay::SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_lay
   const native_handle_t *handle = static_cast<native_handle_t *>(output_buffer_info_.private_data);
   HWC3::Error err = SetReadbackBuffer(handle, nullptr, cwb_config, kCWBClientFrameDump);
   if (err != HWC3::Error::None) {
-    munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size);
+    munmap(buffer, output_buffer_info_.alloc_buffer_info.size);
     buffer_allocator_->FreeBuffer(&output_buffer_info_);
     output_buffer_info_ = {};
     dump_frame_count_ = 0;
@@ -2529,11 +2536,12 @@ bool HWCDisplay::IsLayerUpdating(HWCLayer *hwc_layer) {
   auto layer = hwc_layer->GetSDMLayer();
   // Layer should be considered updating if
   //   a) layer is in single buffer mode, or
-  //   b) valid dirty_regions(android specific hint for updating status), or
-  //   c) layer stack geometry has changed (TODO(user): Remove when SDM accepts
+  //   b) layer is front buffer rendering, or
+  //   c) valid dirty_regions(android specific hint for updating status), or
+  //   d) layer stack geometry has changed (TODO(user): Remove when SDM accepts
   //      geometry_changed as bit fields).
-  return (layer->flags.single_buffer || hwc_layer->IsSurfaceUpdated() ||
-          hwc_layer->GetGeometryChanges());
+  return (layer->flags.single_buffer || layer->flags.front_buffer ||
+          hwc_layer->IsSurfaceUpdated() || hwc_layer->GetGeometryChanges());
 }
 
 DisplayClass HWCDisplay::GetDisplayClass() {
@@ -3046,7 +3054,7 @@ DisplayError HWCDisplay::ValidateTUITransition(SecureEvent secure_event) {
       }
       break;
     case kTUITransitionStart:
-      if (secure_event_ != kSecureEventMax) {
+      if (secure_event_ != kTUITransitionPrepare) {
         DLOGE("Invalid TUI transition from %d to %d", secure_event_, secure_event);
         return kErrorParameters;
       }
@@ -3064,8 +3072,14 @@ DisplayError HWCDisplay::ValidateTUITransition(SecureEvent secure_event) {
   return kErrorNone;
 }
 
-DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh) {
+DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh,
+                                           bool update_event_only) {
   if (secure_event == secure_event_) {
+    return kErrorNone;
+  }
+
+  if (update_event_only) {
+    secure_event_ = secure_event;
     return kErrorNone;
   }
 
@@ -3128,9 +3142,9 @@ int HWCDisplay::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t *x_pixels
   return 0;
 }
 
-DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
-  if (!needs_refresh) {
-    return kErrorParameters;
+DisplayError HWCDisplay::TeardownConcurrentWriteback() {
+  if (!display_intf_->HandleCwbTeardown()) {
+    return kErrorNotSupported;
   }
 
   bool pending_cwb_request = false;
@@ -3156,13 +3170,9 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback(bool *needs_refresh) {
     output_buffer_base_ = nullptr;
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
-    *needs_refresh = false;
-    return kErrorNone;
-  } else {
-    *needs_refresh = true;
-    display_intf_->HandleCwbTeardown();
-    return kErrorNone;
   }
+
+  return kErrorNone;
 }
 
 void HWCDisplay::MMRMEvent(bool restricted) {
@@ -3233,7 +3243,7 @@ HWC3::Error HWCDisplay::SetReadbackBuffer(const native_handle_t *buffer,
   }
 
   if (secure_event_ != kSecureEventMax) {
-    DLOGE("CWB is not supported as TUI transition is in progress");
+    DLOGW("CWB is not supported as TUI transition is in progress");
     return HWC3::Error::Unsupported;
   }
 
