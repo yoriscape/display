@@ -4279,13 +4279,6 @@ android::status_t HWCSession::TUIEventHandler(int disp_id, TUIEventType event_ty
       return -EBUSY;
     }
   }
-  if (tui_callback_handler_future_.valid()) {
-    std::future_status status = tui_callback_handler_future_.wait_for(std::chrono::milliseconds(0));
-    if (status != std::future_status::ready) {
-      DLOGW("callback handler thread is busy with previous work!!");
-      return -EBUSY;
-    }
-  }
   switch (event_type) {
     case TUIEventType::PREPARE_TUI_TRANSITION:
       tui_event_handler_future_ =
@@ -4304,6 +4297,14 @@ android::status_t HWCSession::TUIEventHandler(int disp_id, TUIEventType event_ty
     default:
       DLOGE("Invalid event %d", event_type);
       return -EINVAL;
+  }
+  if (tui_callback_handler_future_.valid()) {
+    std::future_status status =
+        tui_callback_handler_future_.wait_for(std::chrono::milliseconds(1000));
+    if (status != std::future_status::ready) {
+      DLOGW("callback handler thread is busy with previous work!!");
+      return -EBUSY;
+    }
   }
   tui_callback_handler_future_ = std::async(
       [](HWCSession *session, int disp_id, TUIEventType event_type) {
