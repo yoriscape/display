@@ -787,7 +787,7 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
                                                     const uint32_t *sizes,
                                                     const uint8_t *metadata) {
   if (!keys || !sizes || !metadata) {
-    DLOGE("metadata or sizes or keys is null");
+    DLOGW("metadata or sizes or keys is null");
     return HWC3::Error::BadParameter;
   }
 
