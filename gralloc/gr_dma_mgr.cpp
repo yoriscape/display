@@ -244,12 +244,12 @@ void DmaManager::GetCSFVersion() {
 #ifdef TARGET_USES_SMMU_PROXY
   int fd = open(smmu_proxy_node_.c_str(), O_RDONLY);
   if (fd < 0) {
-    ALOGE("Failed to open smmu proxy node = %s, error = %s", smmu_proxy_node_.c_str(),
+    ALOGW("Failed to open smmu proxy node = %s, error = %s", smmu_proxy_node_.c_str(),
           strerror(errno));
     return;
   }
   if (ioctl(fd, QTI_SMMU_PROXY_GET_VERSION_IOCTL, &csf_version_)) {
-    ALOGE("%s: QTI_SMMU_PROXY_GET_VERSION_IOCTL failed with error - %s", __FUNCTION__,
+    ALOGW("%s: QTI_SMMU_PROXY_GET_VERSION_IOCTL failed with error - %s", __FUNCTION__,
           strerror(errno));
     return;
   }
