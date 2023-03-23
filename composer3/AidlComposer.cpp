@@ -84,13 +84,19 @@ binder_status_t AidlComposer::dump(int fd, const char ** /*args*/, uint32_t /*nu
 }
 
 ScopedAStatus AidlComposer::getCapabilities(std::vector<Capability> *aidl_return) {
-  const std::array<Capability, 3> all_caps = {{
-      Capability::SIDEBAND_STREAM, Capability::SKIP_CLIENT_COLOR_TRANSFORM,
+  const std::array<Capability, 2> all_caps = {{
+      Capability::SIDEBAND_STREAM,
       Capability::SKIP_VALIDATE,
   }};
 
   uint32_t count = 0;
+  // Capability::SKIP_CLIENT_COLOR_TRANSFORM is no longer supported as client queries per display
+  // capabilities from AidlComposerClient::getDisplayCapabilities
   hwc_session_->GetCapabilities(&count, nullptr);
+
+  if (!count) {
+    return TO_BINDER_STATUS(INT32(Error::Unsupported));
+  }
 
   std::vector<int32_t> composer_caps(count);
   hwc_session_->GetCapabilities(&count, composer_caps.data());

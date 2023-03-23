@@ -269,7 +269,7 @@ ScopedAStatus AidlComposerClient::getDisplayAttribute(int64_t in_display, int32_
 
 ScopedAStatus AidlComposerClient::getDisplayCapabilities(
     int64_t in_display, std::vector<DisplayCapability> *aidl_return) {
-  // Report optional capabilities that we do support to pass VTS.
+  // Client queries per display capabilities which gets populated here
 
   std::lock_guard<std::mutex> lock(m_display_data_mutex_);
   if (mDisplayData.find(in_display) == mDisplayData.end()) {
@@ -284,6 +284,12 @@ ScopedAStatus AidlComposerClient::getDisplayCapabilities(
   }
 
   if (HwcDisplayConnectionType::INTERNAL == display_conn_type) {
+    // SKIP_CLIENT_COLOR_TRANSFORM is used to prevent client from applying color transform on the
+    // client composed layers. Since DSPP would apply color transform on the final composed output,
+    // this is needed to prevent applying color transform twice. When client queries per display
+    // capabilities, the global Capability::SKIP_CLIENT_COLOR_TRANSFORM is ignored. We need to push
+    // DisplayCapability::SKIP_CLIENT_COLOR_TRANSFORM here to maintain support.
+    aidl_return->push_back(DisplayCapability::SKIP_CLIENT_COLOR_TRANSFORM);
     int32_t has_doze_support = 0;
     hwc_session_->GetDozeSupport(in_display, &has_doze_support);
     if (has_doze_support) {
