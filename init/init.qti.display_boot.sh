@@ -54,6 +54,7 @@ case "$target" in
         setprop vendor.display.enable_latch_media_content 1
         setprop vendor.display.enable_inline_writeback 1
         setprop debug.sf.enable_hwc_vds 0
+        setprop vendor.display.timed_render_enable 1
         ;;
     esac
     ;;
