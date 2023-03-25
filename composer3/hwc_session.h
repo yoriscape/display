@@ -152,6 +152,11 @@ class HWCSession : HWCUEventListener,
     kClientMax
   };
 
+  enum CwbConfigFlag {
+    kCwbFlagPuAsCwbROI,
+    kCwbFlagAvoidRefresh,
+  };
+
   HWCSession();
   int Init();
   int Deinit();

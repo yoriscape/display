@@ -182,6 +182,11 @@ class HWCSession : hwc2_device_t, HWCUEventListener, public qClient::BnQClient,
     kClientMax
   };
 
+  enum CwbConfigFlag {
+    kCwbFlagPuAsCwbROI,
+    kCwbFlagAvoidRefresh,
+  };
+
   HWCSession();
   int Init();
   int Deinit();
