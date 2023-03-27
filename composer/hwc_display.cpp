@@ -1344,6 +1344,11 @@ HWC2::Error HWCDisplay::SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_lay
   dump_frame_index_ = 0;
   dump_input_layers_ = ((bit_mask_layer_type & (1 << INPUT_LAYER_DUMP)) != 0);
 
+  if (dump_input_layers_) {
+    dump_input_frame_count_ = count;
+    dump_input_frame_index_ = 0;
+  }
+
   if (tone_mapper_) {
     tone_mapper_->SetFrameDumpConfig(count);
   }
@@ -1963,11 +1968,11 @@ void HWCDisplay::DumpInputBuffers() {
   char dir_path[PATH_MAX];
   int  status;
 
-  if (!dump_frame_count_ || flush_ || !dump_input_layers_) {
+  if (!dump_input_frame_count_ || flush_ || !dump_input_layers_) {
     return;
   }
 
-  DLOGI("dump_frame_count %d dump_input_layers %d", dump_frame_count_, dump_input_layers_);
+  DLOGI("dump_frame_count %d dump_input_layers %d", dump_input_frame_count_, dump_input_layers_);
   snprintf(dir_path, sizeof(dir_path), "%s/frame_dump_disp_id_%02u_%s", HWCDebugHandler::DumpDir(),
            UINT32(id_), GetDisplayString());
 
@@ -2020,15 +2025,14 @@ void HWCDisplay::DumpInputBuffers() {
     size_t result = 0;
 
     uint32_t width = 0, height = 0, alloc_size = 0;
-    int32_t format = 0;
 
     buffer_allocator_->GetWidth((void *)handle, width);
     buffer_allocator_->GetHeight((void *)handle, height);
-    buffer_allocator_->GetFormat((void *)handle, format);
     buffer_allocator_->GetAllocationSize((void *)handle, alloc_size);
 
-    snprintf(dump_file_name, sizeof(dump_file_name), "%s/input_layer%d_%dx%d_format%d_frame%d.raw",
-             dir_path, i, width, height, format, dump_frame_index_);
+    snprintf(dump_file_name, sizeof(dump_file_name), "%s/input_layer%d_%dx%d_%s_frame%d.raw",
+             dir_path, i, width, height, GetFormatString(layer->input_buffer.format),
+             dump_input_frame_index_);
 
     if (base_ptr != nullptr) {
       FILE *fp = fopen(dump_file_name, "w+");
@@ -2052,6 +2056,8 @@ void HWCDisplay::DumpInputBuffers() {
       break;
     }
   }
+  dump_input_frame_count_--;
+  dump_input_frame_index_++;
 }
 
 void HWCDisplay::DumpOutputBuffer(const BufferInfo &buffer_info, void *base,
