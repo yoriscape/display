@@ -235,13 +235,19 @@ void HWCUEvent::UEventThreadBottom(HWCUEvent *hwc_uevent) {
   }
 }
 
+void HWCUEvent::Deinit() {
+  if (hot_plug_thread_.joinable()) {
+    evt_cv_.notify_one();
+    hot_plug_thread_.join();
+  }
+}
+
 HWCUEvent::HWCUEvent() {
   std::unique_lock<std::mutex> caller_lock(mutex_);
   std::thread thread_top(HWCUEvent::UEventThreadTop, this);
   thread_top.detach();
 
-  std::thread thread_bottom(HWCUEvent::UEventThreadBottom, this);
-  thread_bottom.detach();
+  hot_plug_thread_ = std::thread(HWCUEvent::UEventThreadBottom, this);
 
   caller_cv_.wait(caller_lock);
 }
@@ -371,6 +377,9 @@ void HWCSession::PostInit() {
 }
 
 int HWCSession::Deinit() {
+  g_hwc_uevent_.Register(nullptr);
+  g_hwc_uevent_.Deinit();
+
   // Destroy all connected displays
   DestroyDisplay(&map_info_primary_);
 
@@ -391,8 +400,6 @@ int HWCSession::Deinit() {
   }
 
   if (!null_display_mode_) {
-    g_hwc_uevent_.Register(nullptr);
-
     DisplayError error = CoreInterface::DestroyCore();
     if (error != kErrorNone) {
       DLOGE("Display core de-initialization failed. Error = %d", error);

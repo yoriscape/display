@@ -98,6 +98,8 @@ AidlComposerClient::~AidlComposerClient() {
     }
   }
 
+  hwc_session_->Deinit();
+
   mDisplayData.clear();
 
   mHandleImporter.cleanup();
