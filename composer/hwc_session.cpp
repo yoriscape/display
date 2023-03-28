@@ -307,7 +307,6 @@ int HWCSession::Init() {
 
   is_composer_up_ = true;
 
-  StartServices();
   PostInit();
   GetVirtualDisplayList();
   HpdInit();
