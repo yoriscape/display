@@ -1045,4 +1045,12 @@ uint32_t CompManager::GetMixerCount() {
   return resource_intf_->GetMixerCount();
 }
 
+void CompManager::SetDisplayLayerStack(Handle display_ctx, DispLayerStack *disp_layer_stack) {
+  std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
+
+  DisplayCompositionContext *disp_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  disp_comp_ctx->strategy->SetDisplayLayerStack(disp_layer_stack);
+}
+
 }  // namespace sdm
