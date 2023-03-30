@@ -896,6 +896,7 @@ DisplayError DisplayBase::Prepare(LayerStack *layer_stack) {
   disp_layer_stack_->info.output_buffer = layer_stack->output_buffer;
   disp_layer_stack_->info.hw_cwb_config = layer_stack->cwb_config;
   disp_layer_stack_->info.cwb_id = layer_stack->cwb_id;
+  disp_layer_stack_->info.spr_enable = spr_enable_;
 
   EnableLlccDuringAodMode(layer_stack);
 
@@ -1165,7 +1166,6 @@ DisplayError DisplayBase::PrepareRC(LayerStack *layer_stack) {
   DTRACE_SCOPED();
   int ret = -1;
   HWLayersInfo &hw_layers_info = disp_layer_stack_->info;
-  hw_layers_info.spr_enable = spr_enable_;
   DLOGI_IF(kTagDisplay, "Display resolution: %dx%d", display_attributes_.x_pixels,
            display_attributes_.y_pixels);
   if (rc_cached_res_width_ != display_attributes_.x_pixels) {

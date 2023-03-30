@@ -34,6 +34,7 @@
 #include <core/display_interface.h>
 #include <private/extension_interface.h>
 #include <private/hw_interface.h>
+#include <private/spr_intf.h>
 #include <utils/locker.h>
 #include <bitset>
 #include <set>
@@ -140,6 +141,7 @@ class CompManager : public CwbCallback {
   void SetDisplayLayerStack(Handle display_ctx, DispLayerStack *disp_layer_stack);
   void GetDSConfig(Handle display_ctx, DestScaleInfoMap *dest_scale_info_map);
   bool IsDisplayHWAvailable();
+  DisplayError SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf> intf);
 
  private:
   static const int kMaxThermalLevel = 3;
