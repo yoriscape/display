@@ -32,6 +32,7 @@ ifneq ($(TARGET_IS_HEADLESS),true)
                             libqdMetaData \
                             libgralloc.qti \
                             vendor.display.config@2.0.vendor \
+                            vendor.display.color@1.0-service \
                             init.qti.display_boot.sh \
                             libfilefinder \
                             vendor.qti.hardware.display.demura-service \
