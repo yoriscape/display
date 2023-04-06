@@ -1570,6 +1570,9 @@ DisplayError DisplayBase::PerformHwCommit(HWLayersInfo *hw_layers_info) {
     return error;
   }
 
+  cwb_active_ = false;
+  cwb_output_buf_ = {};
+
   DLOGI_IF(kTagDisplay, "Exiting commit for display: %d-%d", display_id_, display_type_);
 
   return kErrorNone;
@@ -2125,11 +2128,11 @@ std::string DisplayBase::Dump() {
     return os.str();
   }
 
-  LayerBuffer *out_buffer = disp_layer_stack_->info.output_buffer;
-  if (out_buffer) {
-    os << "\n Output buffer res: " << out_buffer->width << "x" << out_buffer->height
-       << " format: " << GetFormatString(out_buffer->format);
+  if (cwb_active_) {
+    os << "\n Output buffer res: " << cwb_output_buf_.width << "x" << cwb_output_buf_.height
+       << " format: " << GetFormatString(cwb_output_buf_.format);
   }
+
   HWLayersInfo &layer_info = disp_layer_stack_->info;
   for (uint32_t i = 0; i < layer_info.left_frame_roi.size(); i++) {
     LayerRect &l_roi = layer_info.left_frame_roi.at(i);
@@ -4348,6 +4351,11 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
           display_type_, error);
     return error;
   }
+
+  cwb_output_buf_.width = output_buffer.width;
+  cwb_output_buf_.height = output_buffer.height;
+  cwb_output_buf_.format = output_buffer.format;
+  cwb_active_ = true;
 
   return kErrorNone;
 }
