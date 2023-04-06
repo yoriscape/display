@@ -30,9 +30,8 @@ namespace hardware {
 namespace display {
 namespace composer3 {
 
-AidlComposer::AidlComposer()
-    : hwc_session_(HWCSession::GetInstance()),
-      display_config_aidl_(::new DisplayConfigAIDL(HWCSession::GetInstance())) {
+AidlComposer::AidlComposer(const shared_ptr<QtiComposer3Client> &extensions)
+    : extensions_(extensions), hwc_session_(HWCSession::GetInstance()) {
   auto error = hwc_session_->Init();
   if (error) {
     ALOGE("Failed to get HWComposer instance");
@@ -43,7 +42,6 @@ AidlComposer::AidlComposer()
 
 AidlComposer::~AidlComposer() {
   hwc_session_->Deinit();
-  delete display_config_aidl_;
 }
 
 ScopedAStatus AidlComposer::createClient(std::shared_ptr<IComposerClient> *aidl_return) {
@@ -53,17 +51,21 @@ ScopedAStatus AidlComposer::createClient(std::shared_ptr<IComposerClient> *aidl_
     return TO_BINDER_STATUS(INT32(Error::NoResources));
   }
 
-  auto composer_client = ndk::SharedRefBase::make<AidlComposerClient>();
-  if (!composer_client || !composer_client->init()) {
+  composer_client_ = ndk::SharedRefBase::make<AidlComposerClient>();
+  if (!composer_client_ || !composer_client_->init()) {
     *aidl_return = nullptr;
     return TO_BINDER_STATUS(INT32(Error::NoResources));
   }
 
+  if (extensions_) {
+    extensions_->init(composer_client_);
+  }
+
   auto clientDestroyed = [this]() { onClientDestroyed(); };
-  composer_client->setOnClientDestroyed(clientDestroyed);
+  composer_client_->setOnClientDestroyed(clientDestroyed);
 
   mClientAlive = true;
-  *aidl_return = composer_client;
+  *aidl_return = composer_client_;
 
   return ScopedAStatus::ok();
 }

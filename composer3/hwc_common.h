@@ -24,9 +24,11 @@
 #ifndef __HWCCOMMON_H__
 #define __HWCCOMMON_H__
 
+#include "aidl/vendor/qti/hardware/display/composer3/QtiLayerFlags.h"
 #pragma once
 
 #include <aidl/android/hardware/graphics/composer3/BnComposerClient.h>
+#include <aidl/vendor/qti/hardware/display/composer3/BnQtiComposer3Client.h>
 #include <aidl/android/hardware/graphics/composer3/Capability.h>
 #include <aidl/android/hardware/graphics/common/ColorTransform.h>
 #include <functional>
@@ -50,6 +52,11 @@ using aidl::android::hardware::graphics::composer3::FormatColorComponent;
 using aidl::android::hardware::graphics::composer3::IComposerClient;
 using aidl::android::hardware::graphics::composer3::PowerMode;
 using aidl::android::hardware::graphics::composer3::VsyncPeriodChangeTimeline;
+
+using aidl::vendor::qti::hardware::display::composer3::QtiDisplayCommand;
+using DrawMethod = aidl::vendor::qti::hardware::display::composer3::QtiDrawMethod;
+using LayerFlag = aidl::vendor::qti::hardware::display::composer3::QtiLayerFlags;
+using LayerType = aidl::vendor::qti::hardware::display::composer3::QtiLayerType;
 
 using FColor = aidl::android::hardware::graphics::composer3::Color;
 
@@ -102,33 +109,10 @@ enum CallbackCommand {
   CALLBACK_VSYNC_IDLE = 7,
 };
 
-/**
- * Set draw method
- */
-enum class DrawMethod : uint32_t {
-  kDefault = 0u,
-  kUnifiedDraw = 1u,
-};
-
 enum class DisplayBasicType : int32_t {
   kInvalid = 0,
   kPhysical = 1,
   kVirtual = 2,
-};
-
-/**
- * Layer flag to set compatible
- */
-enum class LayerFlag : uint32_t {
-  kDefault = 0u,
-  kCompatible = 1u,
-};
-
-enum class LayerType : uint32_t {
-  kUnknown = 0u,
-  kApp = 1u,
-  kGame = 2u,
-  kBrowser = 3u,
 };
 
 /* Display types and associated mask bits. */

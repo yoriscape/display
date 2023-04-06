@@ -3236,7 +3236,7 @@ HWC3::Error HWCDisplay::TryDrawMethod(DrawMethod client_drawMethod) {
     draw_method_ = kDrawDefault;
     status = HWC3::Error::Unsupported;
     DLOGI("Enabling default draw method");
-  } else if (client_drawMethod != DrawMethod::kUnifiedDraw) {
+  } else if (client_drawMethod != DrawMethod::UNIFIED_DRAW) {
     // Driver supports unified draw.
     // If client doesnt support unified draw, limit to kDrawUnified.
     draw_method_ = kDrawUnified;
