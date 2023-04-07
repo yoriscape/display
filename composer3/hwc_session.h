@@ -93,48 +93,34 @@ int32_t GetDataspaceFromColorMode(ColorMode mode);
 
 typedef DisplayConfig::DisplayType DispType;
 
-// Create a singleton uevent listener thread valid for life of hardware composer process.
-// This thread blocks on uevents poll inside uevent library implementation. This poll exits
-// only when there is a valid uevent, it can not be interrupted otherwise. Tieing life cycle
-// of this thread with HWC session cause HWC deinitialization to wait infinitely for the
-// thread to exit.
-class HWCUEventListener {
- public:
-  virtual ~HWCUEventListener() {}
-  virtual void UEventHandler(int connected) = 0;
-
-  int connected = -1;
-  int hpd_bpp_ = 0;
-  int hpd_pattern_ = 0;
-  std::atomic<int> uevent_counter_ = 0;
-};
-
-class HWCUEvent {
- public:
-  HWCUEvent();
-  void Deinit();
-  static void UEventThreadTop(HWCUEvent *hwc_event);
-  static void UEventThreadBottom(HWCUEvent *hwc_event);
-  void Register(HWCUEventListener *uevent_listener);
-  inline bool InitDone() { return init_done_; }
-
- private:
-  std::mutex mutex_;
-  std::condition_variable caller_cv_;
-
-  std::mutex evt_mutex_;
-  std::condition_variable evt_cv_;
-
-  HWCUEventListener *uevent_listener_ = nullptr;
-  bool init_done_ = false;
-  std::thread hot_plug_thread_;
-};
-
 constexpr int32_t kDataspaceSaturationMatrixCount = 16;
 constexpr int32_t kDataspaceSaturationPropertyElements = 9;
 constexpr int32_t kPropertyMax = 256;
 
-class HWCSession : HWCUEventListener,
+class HWCUEvent {
+ public:
+  virtual ~HWCUEvent() {}
+  // hpd handling
+  virtual void HpdInit() = 0;
+  virtual void HpdDeinit() = 0;
+  virtual void ParseUEvent(char *uevent_data, int length) = 0;
+
+  std::mutex hpd_mutex_;
+  std::condition_variable hpd_cv_;
+
+  // top thread needs to be detached as we can't control
+  // to wake it up to terminate it.
+  virtual void HpdThreadTop() = 0;
+
+ protected:
+  int hpd_connected_ = -1;
+  int hpd_bpp_ = 0;
+  int hpd_pattern_ = 0;
+  bool hpd_thread_should_terminate_ = false;
+  std::atomic<int> uevent_counter_ = 0;
+};
+
+class HWCSession : public HWCUEvent,
                    public qClient::BnQClient,
                    public HWCDisplayEventHandler,
                    public DisplayConfig::ClientContext {
@@ -566,7 +552,7 @@ class HWCSession : HWCUEventListener,
 #endif
 
   // Uevent handler
-  virtual void UEventHandler(int connected);
+  virtual void UEventHandler();
 
   // service methods
   void StartServices();
@@ -708,7 +694,19 @@ class HWCSession : HWCUEventListener,
   std::future<int> tui_event_handler_future_;
   std::future<int> tui_callback_handler_future_;
   bool disable_get_screen_decorator_support_ = false;
+
+  // hpd handling
+  void HpdInit() override;
+  void HpdDeinit() override;
+  void ParseUEvent(char *uevent_data, int length) override;
+  void HpdThreadTop() override;
+
+  // Bottom thread needs to be attached so we can wake
+  // it up to terminate it before terminating hwc.
+  void HpdThreadBottom();
+  std::thread hpd_thread_;
 };
+
 }  // namespace sdm
 
 #endif  // __HWC_SESSION_H__
