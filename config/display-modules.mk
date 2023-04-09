@@ -36,5 +36,6 @@ ifneq ($(TARGET_IS_HEADLESS),true)
                             init.qti.display_boot.sh \
                             libfilefinder \
                             vendor.qti.hardware.display.demura-service \
-                            modetest
+                            modetest \
+                            libdisplayconfig.qti
 endif
