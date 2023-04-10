@@ -41,6 +41,7 @@
 #include <vector>
 #include <string>
 #include <QtiGralloc.h>
+#include <aidlcommonsupport/NativeHandle.h>
 
 #include "hwc_buffer_sync_handler.h"
 #include "hwc_session.h"
@@ -1103,75 +1104,10 @@ int HWCSession::DisplayConfigImpl::SetCWBOutputBuffer(uint32_t disp_id,
                                                       const DisplayConfig::Rect rect,
                                                       bool post_processed,
                                                       const native_handle_t *buffer) {
-  if (!callback_.lock()) {
-    DLOGE("Callback_ has not yet been initialized.");
-    return -1;
-  }
-
-  if (!buffer) {
-    DLOGE("Buffer is null.");
-    return -1;
-  }
-
-  if (!hwc_session_) {
-    DLOGE("HWC Session is not established!");
-    return -1;
-  }
-
-  Display disp_type = HWC_DISPLAY_PRIMARY;
-  int dpy_index = -1;
-  if (disp_id == UINT32(DisplayConfig::DisplayType::kPrimary)) {
-    dpy_index = hwc_session_->GetDisplayIndex(qdutils::DISPLAY_PRIMARY);
-  } else if (disp_id == UINT32(DisplayConfig::DisplayType::kExternal)) {
-    dpy_index = hwc_session_->GetDisplayIndex(qdutils::DISPLAY_EXTERNAL);
-    disp_type = HWC_DISPLAY_EXTERNAL;
-  } else if (disp_id == UINT32(DisplayConfig::DisplayType::kBuiltIn2)) {
-    dpy_index = hwc_session_->GetDisplayIndex(qdutils::DISPLAY_BUILTIN_2);
-    disp_type = HWC_DISPLAY_BUILTIN_2;
-  } else {
-    DLOGE("CWB is supported on primary and external displays only at present.");
-    return -1;
-  }
-
-  if (dpy_index == -1) {
-    DLOGW("Unable to retrieve display index for display:%d", disp_id);
-    return -1;
-  }
-
-  if (dpy_index >= HWCCallbacks::kNumDisplays) {
-    DLOGW(
-        "Display index (%d) for display(%d) is out of bound for "
-        "maximum displays supported(%d).",
-        dpy_index, disp_id, HWCCallbacks::kNumDisplays);
-    return -1;
-  }
-
-  // Mutex scope
-  {
-    SCOPE_LOCK(hwc_session_->locker_[dpy_index]);
-    if (!hwc_session_->hwc_display_[dpy_index]) {
-      DLOGE("Display is not created yet with display index = %d and display id = %d!", dpy_index,
-            disp_id);
-      return -1;
-    }
-  }
-
-  CwbConfig cwb_config = {};
-  cwb_config.tap_point = static_cast<CwbTapPoint>(post_processed);
-  LayerRect &roi = cwb_config.cwb_roi;
-  roi.left = FLOAT(rect.left);
-  roi.top = FLOAT(rect.top);
-  roi.right = FLOAT(rect.right);
-  roi.bottom = FLOAT(rect.bottom);
-
-  DLOGI("CWB config passed by cwb_client : tappoint %d  CWB_ROI : (%f %f %f %f)",
-        cwb_config.tap_point, roi.left, roi.top, roi.right, roi.bottom);
-
-  return hwc_session_->cwb_.PostBuffer(callback_, cwb_config, native_handle_clone(buffer),
-                                       disp_type, dpy_index);
+  return -1;
 }
 
-int32_t HWCSession::CWB::PostBuffer(std::weak_ptr<DisplayConfig::ConfigCallback> callback,
+int32_t HWCSession::CWB::PostBuffer(std::shared_ptr<IDisplayConfigCallback> callback,
                                     const CwbConfig &cwb_config, const native_handle_t *buffer,
                                     Display display_type, int dpy_index) {
   HWC3::Error error = HWC3::Error::None;
@@ -1336,10 +1272,10 @@ void HWCSession::CWB::ProcessCWBStatus(int dpy_index) {
 
 void HWCSession::CWB::NotifyCWBStatus(int status, std::shared_ptr<QueueNode> cwb_node) {
   // Notify client about buffer status and erase the node from pending request queue.
-  std::shared_ptr<DisplayConfig::ConfigCallback> callback = cwb_node->callback.lock();
+  std::shared_ptr<IDisplayConfigCallback> callback = cwb_node->callback;
   if (callback) {
     DLOGI("Notify the client about buffer status %d.", status);
-    callback->NotifyCWBBufferDone(status, cwb_node->buffer);
+    callback->notifyCWBBufferDone(status, ::android::makeToAidl(cwb_node->buffer));
   }
 
   native_handle_close(cwb_node->buffer);
