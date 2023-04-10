@@ -25,6 +25,7 @@
  */
 
 #include "hwc_layers.h"
+#include "hwc_debugger.h"
 #include <utils/debug.h>
 #include <stdint.h>
 #include <utility>
@@ -315,6 +316,18 @@ DisplayError ColorMetadataToDataspace(ColorMetaData color_metadata, Dataspace *d
 
   *dataspace = (Dataspace)((uint32_t)primaries | (uint32_t)transfer | (uint32_t)range);
   return kErrorNone;
+}
+
+static bool IsSdrDimmingDisabled() {
+  static bool read_prop = false;
+  static bool disable_sdr_dimming = false;
+  if (!read_prop) {
+    int value = 0;
+    HWCDebugHandler::Get()->GetProperty(DISABLE_SDR_DIMMING, &value);
+    disable_sdr_dimming = (value == 1);
+  }
+  read_prop = true;
+  return disable_sdr_dimming;
 }
 
 // Layer operations
@@ -821,6 +834,11 @@ HWC3::Error HWCLayer::SetLayerBrightness(float brightness) {
   if (brightness < 0.0f || brightness > 1.0f) {
     DLOGE("Invalid brightness = %f", brightness);
     return HWC3::Error::BadParameter;
+  }
+
+  // When SDR dimming is disabled, layer brightness needs to be reset for device composition
+  if (brightness != 1.0f && IsSdrDimmingDisabled() && client_requested_ == Composition::DEVICE) {
+    brightness = 1.0f;
   }
 
   if (layer_->layer_brightness != brightness) {
