@@ -144,8 +144,8 @@ class ResourceDefault : public ResourceInterface {
   virtual void HandleSkipValidate(Handle display_ctx);
   virtual std::string Dump();
   virtual uint32_t GetMixerCount();
-  virtual void HandleTUITransition(bool tui_active);
   virtual DisplayError SetBlendSpace(Handle display_ctx, const PrimariesTransfer &blend_space);
+  virtual void HandleTUITransition(Handle display_ctx, bool tui_active);
 
  private:
   enum PipeOwner {
