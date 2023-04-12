@@ -254,6 +254,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError HandleDemuraLayer(LayerStack *layer_stack);
   void NotifyDppsHdrPresent(LayerStack *layer_stack);
   bool IdleFallbackLowerFps(bool idle_screen);
+  void HandleUpdateTransferTime(QSyncMode mode);
 
   const uint32_t kPuTimeOutMs = 1000;
   std::vector<HWEvent> event_list_;
