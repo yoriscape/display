@@ -945,6 +945,27 @@ DisplayError DisplayBuiltIn::RetrieveDemuraTnFiles() {
   return kErrorNone;
 }
 
+DisplayError DisplayBuiltIn::SetDisplayStateForDemuraTn(DisplayState state) {
+  int ret = 0;
+  DisplayState *disp_state = nullptr;
+  GenericPayload pl;
+
+  ret = pl.CreatePayload<DisplayState>(disp_state);
+  if (ret) {
+    DLOGE("failed to create the payload. Error:%d", ret);
+    return kErrorUndefined;
+  }
+  *disp_state = state;
+
+  ret = demuratn_->SetParameter(kDemuraTnCoreUvmParamDisplayState, pl);
+  if (ret) {
+    DLOGE("SetParameter for DisplayState failed ret %d", ret);
+    return kErrorUndefined;
+  }
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::SetUpCommit(LayerStack *layer_stack) {
   DTRACE_SCOPED();
   last_panel_mode_ = hw_panel_info_.mode;
@@ -1119,6 +1140,10 @@ DisplayError DisplayBuiltIn::SetDisplayState(DisplayState state, bool teardown,
       (state == kStateOn || state == kStateDoze)) {
     comp_manager_->SetDemuraStatusForDisplay(display_id_, true);
     SetDemuraIntfStatus(true, demura_current_idx_);
+  }
+
+  if (demuratn_ && demuratn_enabled_) {
+    SetDisplayStateForDemuraTn(state);
   }
 
   return kErrorNone;
