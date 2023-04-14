@@ -714,6 +714,8 @@ void HWDeviceDRM::InitializeConfigs() {
     uint32_t sub_mode_index = connector_info_.modes[mode_index].curr_submode_index;
     connector_info_.modes[mode_index].curr_compression_mode =
               connector_info_.modes[mode_index].sub_modes[sub_mode_index].panel_compression_mode;
+    connector_info_.modes[mode_index].curr_bpp_mode =
+              connector_info_.modes[mode_index].sub_modes[sub_mode_index].bpp_mode;
     if (panel_mode_pref &
         connector_info_.modes[mode_index].sub_modes[sub_mode_index].panel_mode_caps) {
       connector_info_.modes[mode_index].cur_panel_mode = panel_mode_pref;
@@ -1786,6 +1788,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     }
   }
 
+  if (bpp_mode_changed_) {
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BPP_MODE, token_.conn_id, bpp_mode_changed_);
+  }
+
   if (first_cycle_) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, token_.conn_id,
                               topology_control_);
@@ -2013,6 +2019,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     seamless_mode_switch_ = false;
     panel_compression_changed_ = 0;
     transfer_time_updated_ = 0;
+    bpp_mode_changed_ = 0;
     return kErrorHardware;
   }
 
@@ -2067,6 +2074,17 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     panel_mode_changed_ = 0;
     synchronous_commit_ = false;
     reset_output_fence_offset_ = true;
+  }
+
+  if (bpp_mode_changed_) {
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (bpp_mode_changed_ == current_mode.sub_modes[submode_idx].bpp_mode) {
+        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+        connector_info_.modes[current_mode_index_].curr_bpp_mode = bpp_mode_changed_;
+      }
+    }
+    bpp_mode_changed_ = 0;
   }
 
   panel_compression_changed_ = 0;
@@ -2988,6 +3006,10 @@ bool HWDeviceDRM::IsFullFrameUpdate(const HWLayersInfo &hw_layer_info) {
   }
 
   return true;
+}
+
+DisplayError HWDeviceDRM::SetBppMode(uint32_t bpp) {
+  return kErrorNotSupported;
 }
 
 DisplayError HWDeviceDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {

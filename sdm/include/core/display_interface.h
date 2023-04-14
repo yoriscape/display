@@ -723,6 +723,14 @@ class DisplayInterface {
   */
   virtual DisplayError SetDisplayMode(uint32_t mode) = 0;
 
+  /*! @brief Method to set the bpp of the panel.
+
+    @param[in] bpp the new bpp mode.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetBppMode(uint32_t bpp) = 0;
+
   /*! @brief Method to get the min and max refresh rate of a display.
 
     @param[out] min and max refresh rate.

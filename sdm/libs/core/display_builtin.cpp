@@ -1257,6 +1257,24 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness) {
   return err;
 }
 
+DisplayError DisplayBuiltIn::SetBppMode(uint32_t bpp) {
+  {
+    ClientLock lock(disp_mutex_);
+
+    DisplayError error = hw_intf_->SetBppMode(bpp);
+    if (error != kErrorNone) {
+      DLOGW("Retaining current panel bpp mode on display %d-%d. Requested = 0x%x",
+            display_id_, display_type_, bpp);
+      return error;
+    }
+    DisplayBase::ReconfigureDisplay();
+  }
+
+  event_handler_->Refresh();
+
+  return kErrorNone;
+}
+
 DisplayError DisplayBuiltIn::GetRefreshRateRange(uint32_t *min_refresh_rate,
                                                  uint32_t *max_refresh_rate) {
   ClientLock lock(disp_mutex_);

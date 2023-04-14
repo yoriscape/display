@@ -108,6 +108,7 @@ class HWCDisplayBuiltIn : public HWCDisplay, public SyncTask<LayerStitchTaskCode
   virtual DisplayError SetDetailEnhancerConfig(const DisplayDetailEnhancerData &de_data);
   virtual DisplayError SetHWDetailedEnhancerConfig(void *params);
   virtual DisplayError ControlPartialUpdate(bool enable, uint32_t *pending);
+  virtual DisplayError SetBppMode(uint32_t bpp);
   virtual HWC3::Error SetQSyncMode(QSyncMode qsync_mode);
   virtual DisplayError ControlIdlePowerCollapse(bool enable, bool synchronous);
   virtual HWC3::Error SetDisplayDppsAdROI(uint32_t h_start, uint32_t h_end, uint32_t v_start,

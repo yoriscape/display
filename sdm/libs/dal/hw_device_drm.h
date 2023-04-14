@@ -150,6 +150,7 @@ class HWDeviceDRM : public HWInterface {
   virtual DisplayError SetVSyncState(bool enable);
   virtual void SetIdleTimeoutMs(uint32_t timeout_ms);
   virtual DisplayError SetDisplayMode(const HWDisplayMode hw_display_mode);
+  virtual DisplayError SetBppMode(uint32_t bpp);
   virtual DisplayError SetRefreshRate(uint32_t refresh_rate);
   virtual DisplayError SetPanelBrightness(int level) { return kErrorNotSupported; }
   virtual DisplayError GetHWScanInfo(HWScanInfo *scan_info);
@@ -349,6 +350,7 @@ class HWDeviceDRM : public HWInterface {
   uint32_t vrefresh_ = 0;
   uint32_t panel_mode_changed_ = 0;
   uint32_t panel_compression_changed_ = 0;
+  uint32_t bpp_mode_changed_ = 0;
   bool reset_output_fence_offset_ = false;
   uint64_t bit_clk_rate_ = 0;
   bool update_mode_ = false;

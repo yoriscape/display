@@ -333,6 +333,7 @@ class HWCDisplay : public DisplayEventHandler {
   virtual DisplayError SetJitterConfig(uint32_t jitter_type, float value, uint32_t time) {
     return kErrorNotSupported;
   }
+  virtual DisplayError SetBppMode(uint32_t bpp) { return kErrorNotSupported; }
   virtual DisplayError SetDynamicDSIClock(uint64_t bitclk) { return kErrorNotSupported; }
   virtual DisplayError GetDynamicDSIClock(uint64_t *bitclk) { return kErrorNotSupported; }
   virtual DisplayError GetSupportedDSIClock(std::vector<uint64_t> *bitclk) {

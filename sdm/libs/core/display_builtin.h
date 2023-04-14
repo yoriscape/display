@@ -164,6 +164,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   DisplayError GetPanelMaxBrightness(uint32_t *max_brightness_level) override;
   DisplayError GetRefreshRate(uint32_t *refresh_rate) override;
   DisplayError SetDisplayDppsAdROI(void *payload) override;
+  DisplayError SetBppMode(uint32_t bpp) override;
   DisplayError SetQSyncMode(QSyncMode qsync_mode) override;
   DisplayError ControlIdlePowerCollapse(bool enable, bool synchronous) override;
   DisplayError SetJitterConfig(uint32_t jitter_type, float value, uint32_t time) override;

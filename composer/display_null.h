@@ -99,6 +99,7 @@ class DisplayNull : public DisplayInterface {
   MAKE_NO_OP(ControlPartialUpdate(bool, uint32_t *))
   MAKE_NO_OP(DisablePartialUpdateOneFrame())
   MAKE_NO_OP(SetDisplayMode(uint32_t))
+  MAKE_NO_OP(SetBppMode(uint32_t))
   MAKE_NO_OP(SetPanelBrightness(float))
   MAKE_NO_OP(CachePanelBrightness(int))
   MAKE_NO_OP(OnMinHdcpEncryptionLevelChange(uint32_t))

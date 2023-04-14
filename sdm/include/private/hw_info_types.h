@@ -197,6 +197,12 @@ enum HWTopology {
   kPPSplit,
 };
 
+enum HWBppMode {
+  kBppModeNone = 0,
+  kBppMode24 = 0x1,
+  kBppMode30 = 0x2,
+};
+
 enum HWMixerSplit {
   kNoSplit,
   kDualSplit,
@@ -532,6 +538,7 @@ struct HWPanelInfo {
   bool has_cwb_crop = false;           // CWB Crop support
   bool fsc_panel = false;              // fsd_panel
   uint32_t num_fsc_fields = 0;         // number of fields supported in fsc panel
+
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return (

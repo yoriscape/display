@@ -633,7 +633,6 @@ void DRMConnector::ParseProperties() {
       PopulateCacheStates(info);
     }
 
-
     prop_mgr_.SetPropertyId(prop_enum, info->prop_id);
     drmModeFreeProperty(info);
   }
@@ -799,6 +798,7 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
   const string compression_mode = "dsc_mode=";
   const string preferred_submode_string = "preferred_submode_idx=";
   const string qsync_min_fps = "qsync_min_fps=";
+  const string bpp_mode = "bpp_mode=";
 
   DRMModeInfo *mode_item = &info->modes.at(0);
   DRMSubModeInfo *submode_item = NULL;
@@ -904,6 +904,14 @@ void DRMConnector::ParseModeProperties(uint64_t blob_id, DRMConnectorInfo *info)
       submode_item->panel_compression_mode = std::stoi(string(line, compression_mode.length()));
     } else if (line.find(qsync_min_fps) != string::npos) {
       mode_item->qsync_min_fps = std::stoi(string(line, qsync_min_fps.length()));
+    } else if (line.find(bpp_mode) != string::npos) {
+      if (!submode_item) {
+        DRMSubModeInfo submode = {};
+        mode_item->sub_modes.push_back(submode);
+        submode_item = &mode_item->sub_modes.at(submode_index++);
+        submode_index = 0;
+      }
+      submode_item->bpp_mode = std::stoi(string(line, bpp_mode.length()));
     }
   }
 
@@ -1291,6 +1299,21 @@ void DRMConnector::Perform(DRMOps code, drmModeAtomicReq *req, va_list args) {
       drmModeAtomicAddProperty(req, obj_id, prop_mgr_.GetPropertyId(DRMProperty::PANEL_MODE),
                                drm_panel_mode);
       DRM_LOGD("Connector %d: Setting Panel mode 0x%x", obj_id, drm_panel_mode);
+    } break;
+
+    case DRMOps::CONNECTOR_SET_BPP_MODE: {
+      if (!prop_mgr_.IsPropertyAvailable(DRMProperty::BPP_MODE)) {
+        return;
+      }
+      uint32_t bpp_mode = va_arg(args, uint32_t);
+      uint32_t prop_id = prop_mgr_.GetPropertyId(DRMProperty::BPP_MODE);
+      int ret = drmModeAtomicAddProperty(req, obj_id, prop_id, bpp_mode);
+      if (ret < 0) {
+        DRM_LOGE("AtomicAddProperty failed obj_id 0x%x, prop_id %d bpp_mode %d ret %d",
+                 obj_id, prop_id, bpp_mode, ret);
+      } else {
+        DRM_LOGD("Connector %d: Setting Bpp mode 0x%x", obj_id, bpp_mode);
+      }
     } break;
 
     case DRMOps::CONNECTOR_SET_DYN_BIT_CLK: {

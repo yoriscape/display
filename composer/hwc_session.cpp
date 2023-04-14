@@ -1899,6 +1899,14 @@ android::status_t HWCSession::notifyCallback(uint32_t command, const android::Pa
       status = INT32(SetDisplayBrightnessScale(input_parcel));
       break;
 
+    case qService::IQService::SET_BPP_MODE:
+      if (!input_parcel) {
+        DLOGE("QService command = %d: input_parcel needed.", command);
+        break;
+      }
+      status = SetBppMode(input_parcel);
+      break;
+
     case qService::IQService::SET_VSYNC_STATE: {
       if (!input_parcel || !output_parcel) {
         DLOGE("Qservice command = %d: input_parcel needed.", command);
@@ -3944,6 +3952,18 @@ HWC3::Error HWCSession::SetDisplayBrightness(Display display, float brightness) 
 
   return (INT32(hwc_display_[display]->SetPanelBrightness(brightness))) ? HWC3::Error::Unsupported
                                                                         : HWC3::Error::None;
+}
+
+android::status_t HWCSession::SetBppMode(const android::Parcel *input_parcel) {
+  SEQUENCE_WAIT_SCOPE_LOCK(locker_[HWC_DISPLAY_PRIMARY]);
+
+  if (!hwc_display_[HWC_DISPLAY_PRIMARY]) {
+    DLOGW("Display = %d is not connected.", HWC_DISPLAY_PRIMARY);
+    return -ENODEV;
+  }
+
+  uint32_t bpp = UINT32(input_parcel->readInt32());
+  return hwc_display_[HWC_DISPLAY_PRIMARY]->SetBppMode(bpp);
 }
 
 android::status_t HWCSession::SetQSyncMode(const android::Parcel *input_parcel) {

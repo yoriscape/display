@@ -584,6 +584,7 @@ class HWCSession : public HWCUEvent,
   android::status_t SetColorModeById(const android::Parcel *input_parcel);
   android::status_t SetColorModeFromClient(const android::Parcel *input_parcel);
   android::status_t getComposerStatus();
+  android::status_t SetBppMode(const android::Parcel *input_parcel);
   android::status_t SetQSyncMode(const android::Parcel *input_parcel);
   android::status_t SetIdlePC(const android::Parcel *input_parcel);
   android::status_t RefreshScreen(const android::Parcel *input_parcel);
