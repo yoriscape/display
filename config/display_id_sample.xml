@@ -36,6 +36,9 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
 -->
 
 <displayConfiguration>
+<!--
+  // Comment out the densityMapping table to avoid calculating interpolation for density if
+  // the resolution and density are not specified. The system will use the default density value.
   <densityMapping>
     <density>
       <height>480</height>
@@ -58,7 +61,7 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
       <density>640</density>
     </density>
   </densityMapping>
-
+-->
   <screenBrightnessMap interpolation="linear">
     <point>
       <value>0.0</value>
