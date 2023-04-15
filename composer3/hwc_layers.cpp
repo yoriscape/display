@@ -801,7 +801,9 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
                                                     const uint8_t *metadata) {
   if (!keys || !sizes || !metadata) {
     DLOGW("metadata or sizes or keys is null");
-    return HWC3::Error::BadParameter;
+    // According to Google, it is expected for the layer metadata in certain scenarios. When this
+    // happens, simply return Error::None. More info on the Google bug (b/275697888)
+    return HWC3::Error::None;
   }
 
   ColorMetaData &color_metadata = layer_->input_buffer.color_metadata;
