@@ -90,7 +90,7 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
   </thermalThrottling>
 
   <highBrightnessMode enabled="true">
-    <transitionPoint>0.62</transitionPoint>
+    <transitionPoint>0.85</transitionPoint>
     <minimumHdrPercentOfScreen>0.1</minimumHdrPercentOfScreen>
 
     <minimumLux>10000</minimumLux>

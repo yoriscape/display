@@ -49,8 +49,8 @@ PRODUCT_COPY_FILES += hardware/qcom/display/config/backlight_calib_vtdr6130_amol
 #Smomo config xml file
 PRODUCT_COPY_FILES += hardware/qcom/display/config/smomo_setting.xml:$(TARGET_COPY_OUT_VENDOR)/etc/smomo_setting.xml
 
-#SDR Dimming config file
-PRODUCT_COPY_FILES += hardware/qcom/display/config/display_id_sample.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_sample.xml
+#SDR Dimming config file for vtdr6130, display id is 4630947039571902851
+PRODUCT_COPY_FILES += hardware/qcom/display/config/display_id_sample.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947039571902851.xml
 
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.demo.hdmirotationlock=false \
@@ -85,7 +85,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     vendor.display.enable_async_vds_creation=1 \
     vendor.display.enable_rounded_corner=1 \
     vendor.display.disable_3d_adaptive_tm=1 \
-    vendor.display.disable_sdr_dimming=1 \
+    vendor.display.disable_sdr_dimming=0 \
     vendor.display.enable_rc_support=1 \
     vendor.display.disable_sdr_histogram=1 \
     vendor.display.enable_hdr10_gpu_target=1 \
