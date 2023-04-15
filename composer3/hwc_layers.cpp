@@ -833,7 +833,7 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
 }
 
 HWC3::Error HWCLayer::SetLayerBrightness(float brightness) {
-  if (brightness < 0.0f || brightness > 1.0f) {
+  if (std::isnan(brightness) || brightness < 0.0f || brightness > 1.0f) {
     DLOGE("Invalid brightness = %f", brightness);
     return HWC3::Error::BadParameter;
   }
