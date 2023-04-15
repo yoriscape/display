@@ -632,7 +632,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
 #else
   uint32_t aligned_width = ALIGN(static_cast<int>(buffer->buffer_config.width), 32);
   uint32_t aligned_height = ALIGN(static_cast<int>(buffer->buffer_config.height), 32);
-  float bpp = GetBufferFormatBpp(kFormatRGB888);
+  demura_layer_.input_buffer.format = buffer->buffer_config.format;
+  float bpp = GetBufferFormatBpp(kFormatBGRA8888);
   uint32_t stride = static_cast<uint32_t>(aligned_width * bpp);
   demura_layer_.input_buffer.size = hfc_buffer_size_;
   demura_layer_.input_buffer.width = aligned_width;
@@ -2806,7 +2807,7 @@ void DisplayIPCVmCallbackImpl::ExportHFCBuffer() {
 
   buffer_info_hfc_.buffer_config.width = hfc_buffer_width_;
   buffer_info_hfc_.buffer_config.height = hfc_buffer_height_;
-  buffer_info_hfc_.buffer_config.format = kFormatRGB888;
+  buffer_info_hfc_.buffer_config.format = kFormatBGRA8888;
   buffer_info_hfc_.buffer_config.buffer_count = 1;
   std::bitset<kBufferPermMax> buf_perm;
   buf_perm.set(kBufferPermRead);
