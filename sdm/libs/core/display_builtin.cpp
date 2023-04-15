@@ -368,12 +368,19 @@ void DisplayBuiltIn::CacheFrameROI() {
 }
 
 void DisplayBuiltIn::UpdateQsyncMode() {
-  if (!hw_panel_info_.qsync_support || avoid_qsync_mode_change_) {
+  if (!hw_panel_info_.qsync_support) {
     return;
   }
 
+  // Get qsync min fps for the current mode
+  uint32_t qsync_mode_min_fps = 0;
+  hw_intf_->GetQsyncFps(&qsync_mode_min_fps);
   QSyncMode mode = kQSyncModeNone;
-  if (lower_fps_ && enable_qsync_idle_) {
+  if (!qsync_mode_min_fps) {
+    // Set qsync mode to 0 when the current mode doesn't support it.
+    mode = kQSyncModeNone;
+    DLOGV_IF(kTagDisplay, "Qsync disabled as current mode doesn't support it");
+  } else if (lower_fps_ && enable_qsync_idle_) {
     // Override to continuous mode upon idling.
     mode = kQSyncModeContinuous;
     DLOGV_IF(kTagDisplay, "Qsync entering continuous mode");
@@ -390,8 +397,24 @@ void DisplayBuiltIn::UpdateQsyncMode() {
   DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d", display_id_, display_type_,
            disp_layer_stack_->info.hw_avr_info.update, mode);
 
-  // Store active mde.
+  if (mode != active_qsync_mode_) {
+    HandleUpdateTransferTime(mode);
+  }
+
+  // Store active mode.
   active_qsync_mode_ = mode;
+}
+
+void DisplayBuiltIn::HandleUpdateTransferTime(QSyncMode mode) {
+  if (mode == kQSyncModeNone) {
+    DLOGI("Qsync mode set to %d successfully, setting transfer time to min: %d", mode,
+          hw_panel_info_.transfer_time_us_min);
+    UpdateTransferTime(hw_panel_info_.transfer_time_us_min);
+  } else {
+    DLOGI("Qsync mode set to %d successfully, setting transfer time to max: %d", mode,
+          hw_panel_info_.transfer_time_us_max);
+    UpdateTransferTime(hw_panel_info_.transfer_time_us_max);
+  }
 }
 
 HWAVRModes DisplayBuiltIn::GetAvrMode(QSyncMode mode) {
@@ -1022,7 +1045,7 @@ void DisplayBuiltIn::HandleQsyncPostCommit() {
     event_handler_->HandleEvent(kPostIdleTimeout);
   }
 
-  bool qsync_enabled = (qsync_mode_ != kQSyncModeNone);
+  bool qsync_enabled = (active_qsync_mode_ != kQSyncModeNone);
   if (qsync_enabled == qsync_enabled_) {
     return;
   }
@@ -2013,17 +2036,6 @@ DisplayError DisplayBuiltIn::SetQSyncMode(QSyncMode qsync_mode) {
   needs_avr_update_ = true;
   validated_ = false;
   event_handler_->Refresh();
-
-  if (qsync_mode_ == kQSyncModeNone) {
-    DLOGI("Qsync mode set to %d successfully, setting transfer time to min: %d", qsync_mode_,
-          hw_panel_info_.transfer_time_us_min);
-    UpdateTransferTime(hw_panel_info_.transfer_time_us_min);
-  } else {
-    DLOGI("Qsync mode set to %d successfully, setting transfer time to max: %d", qsync_mode_,
-          hw_panel_info_.transfer_time_us_max);
-    UpdateTransferTime(hw_panel_info_.transfer_time_us_max);
-  }
-
   return kErrorNone;
 }
 
