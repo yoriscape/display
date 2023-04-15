@@ -47,8 +47,18 @@ AidlComposer::~AidlComposer() {
 ScopedAStatus AidlComposer::createClient(std::shared_ptr<IComposerClient> *aidl_return) {
   std::unique_lock<std::mutex> lock(mClientMutex);
   if (!waitForClientDestroyedLocked(lock)) {
-    *aidl_return = nullptr;
-    return TO_BINDER_STATUS(INT32(Error::NoResources));
+    // Re-initialize hwc_session (to clear state) if client (SF) is expecting to use same composer
+    // instance on restart
+    if (hwc_session_) {
+      hwc_session_->Deinit();
+      hwc_session_->Init();
+      if (composer_client_) {
+        *aidl_return = composer_client_;
+      }
+    } else {
+      *aidl_return = nullptr;
+      return TO_BINDER_STATUS(INT32(Error::NoResources));
+    }
   }
 
   composer_client_ = ndk::SharedRefBase::make<AidlComposerClient>();
