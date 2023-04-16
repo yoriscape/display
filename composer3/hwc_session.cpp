@@ -3246,9 +3246,9 @@ int HWCSession::HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool d
   // Active builtin display needs revalidation
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
   if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
-    status = INT32(WaitForResources(delay_hotplug, active_builtin_disp_id, client_id));
-    if (status) {
-      return status;
+    auto ret = WaitForResources(delay_hotplug, active_builtin_disp_id, client_id);
+    if (ret != HWC3::Error::None) {
+      return -EAGAIN;
     }
   }
 
@@ -4054,11 +4054,13 @@ HWC3::Error HWCSession::WaitForResources(bool wait_for_resources, Display active
         std::unique_lock<std::mutex> caller_lock(hotplug_mutex_);
         resource_ready_ = false;
 
-        const uint32_t min_vsync_period_ms = 100;
+        static constexpr uint32_t min_vsync_period_ms = 500;
         auto timeout =
             std::chrono::system_clock::now() + std::chrono::milliseconds(min_vsync_period_ms);
+
         if (hotplug_cv_.wait_until(caller_lock, timeout) == std::cv_status::timeout) {
           DLOGW("hotplug timeout");
+          return HWC3::Error::NoResources;
         }
 
         if (active_display_id_ == active_builtin_id && needs_active_builtin_reconfig &&
