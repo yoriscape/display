@@ -345,7 +345,7 @@ class HWCSession : HWCUEventListener,
   virtual void PerformQsyncCallback(Display display, bool qsync_enabled, uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
   virtual void VmReleaseDone(Display display);
-  virtual int NotifyCwbDone(Display display, int32_t status, uint64_t handle_id);
+  virtual int NotifyCwbDone(int dpy_index, int32_t status, uint64_t handle_id);
 
   HWC3::Error SetVsyncEnabled(Display display, bool enabled);
   HWC3::Error GetDozeSupport(Display display, int32_t *out_support);
@@ -381,9 +381,8 @@ class HWCSession : HWCUEventListener,
 
     int32_t PostBuffer(std::weak_ptr<DisplayConfig::ConfigCallback> callback,
                        const CwbConfig &cwb_config, const native_handle_t *buffer,
-                       Display display_type);
-    bool IsCwbActiveOnDisplay(Display disp_type);
-    int OnCWBDone(Display display_type, int32_t status, uint64_t handle_id);
+                       Display display_type, int dpy_index);
+    int OnCWBDone(int dpy_index, int32_t status, uint64_t handle_id);
 
    private:
     enum CWBNotifiedStatus {
@@ -418,11 +417,11 @@ class HWCSession : HWCUEventListener,
       bool async_thread_running = false;
     };
 
-    static void AsyncTaskToProcessCWBStatus(CWB *cwb, Display display_type);
-    void ProcessCWBStatus(Display display_type);
+    static void AsyncTaskToProcessCWBStatus(CWB *cwb, int dpy_index);
+    void ProcessCWBStatus(int dpy_index);
     void NotifyCWBStatus(int status, std::shared_ptr<QueueNode> cwb_node);
 
-    std::map<Display, DisplayCWBSession> display_cwb_session_map_;
+    std::map<int, DisplayCWBSession> display_cwb_session_map_;
     HWCSession *hwc_session_ = nullptr;
   };
 
