@@ -380,7 +380,7 @@ class HWCSession : HWCUEventListener,
    public:
     explicit CWB(HWCSession *hwc_session) : hwc_session_(hwc_session) {}
 
-    int32_t PostBuffer(std::weak_ptr<DisplayConfig::ConfigCallback> callback,
+    int32_t PostBuffer(std::shared_ptr<IDisplayConfigCallback> callback,
                        const CwbConfig &cwb_config, const native_handle_t *buffer,
                        Display display_type, int dpy_index);
     int OnCWBDone(int dpy_index, int32_t status, uint64_t handle_id);
@@ -393,7 +393,7 @@ class HWCSession : HWCUEventListener,
     };
 
     struct QueueNode {
-      QueueNode(std::weak_ptr<DisplayConfig::ConfigCallback> cb, const CwbConfig &cwb_conf,
+      QueueNode(std::shared_ptr<IDisplayConfigCallback> cb, const CwbConfig &cwb_conf,
                 const hidl_handle &buf, Display disp_type, uint64_t buf_id)
           : callback(cb),
             cwb_config(cwb_conf),
@@ -401,7 +401,7 @@ class HWCSession : HWCUEventListener,
             display_type(disp_type),
             handle_id(buf_id) {}
 
-      std::weak_ptr<DisplayConfig::ConfigCallback> callback;
+      std::shared_ptr<IDisplayConfigCallback> callback;
       CwbConfig cwb_config = {};
       const native_handle_t *buffer;
       Display display_type;
