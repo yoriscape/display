@@ -140,6 +140,9 @@
 // RC
 #define ENABLE_ROUNDED_CORNER                DISPLAY_PROP("enable_rounded_corner")
 #define DISABLE_ROUNDED_CORNER_THREAD        DISPLAY_PROP("disable_rounded_corner_thread")
+// Disable A8 format Screen Decorator support
+#define DISABLE_GET_SCREEN_DECORATOR_SUPPORT DISPLAY_PROP("disable_get_screen_decorator_support")
+
 // SPR
 #define ENABLE_SPR                           DISPLAY_PROP("enable_spr")
 #define ENABLE_SPR_BYPASS                    DISPLAY_PROP("enable_spr_bypass")
@@ -222,7 +225,6 @@
 #define DISABLE_CWB_IDLE_FALLBACK            DISPLAY_PROP("disable_cwb_idle_fallback")
 #define PRIORITIZE_CLIENT_CWB                DISPLAY_PROP("prioritize_client_cwb")
 #define TRANSIENT_FPS_CYCLE_COUNT            DISPLAY_PROP("transient_fps_cycle_count")
-#define DISABLE_IDLE_FRONT_BUFFER            DISPLAY_PROP("disable_idle_front_buffer")
 
 // Add all other.properties above
 // End of property

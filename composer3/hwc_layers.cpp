@@ -25,6 +25,7 @@
  */
 
 #include "hwc_layers.h"
+#include "hwc_debugger.h"
 #include <utils/debug.h>
 #include <stdint.h>
 #include <utility>
@@ -315,6 +316,18 @@ DisplayError ColorMetadataToDataspace(ColorMetaData color_metadata, Dataspace *d
 
   *dataspace = (Dataspace)((uint32_t)primaries | (uint32_t)transfer | (uint32_t)range);
   return kErrorNone;
+}
+
+static bool IsSdrDimmingDisabled() {
+  static bool read_prop = false;
+  static bool disable_sdr_dimming = false;
+  if (!read_prop) {
+    int value = 0;
+    HWCDebugHandler::Get()->GetProperty(DISABLE_SDR_DIMMING, &value);
+    disable_sdr_dimming = (value == 1);
+  }
+  read_prop = true;
+  return disable_sdr_dimming;
 }
 
 // Layer operations
@@ -684,16 +697,16 @@ HWC3::Error HWCLayer::SetLayerZOrder(uint32_t z) {
 HWC3::Error HWCLayer::SetLayerType(LayerType type) {
   LayerTypes layer_type = kLayerUnknown;
   switch (type) {
-    case LayerType::kUnknown:
+    case LayerType::UNKNOWN:
       layer_type = kLayerUnknown;
       break;
-    case LayerType::kApp:
+    case LayerType::APP:
       layer_type = kLayerApp;
       break;
-    case LayerType::kGame:
+    case LayerType::GAME:
       layer_type = kLayerGame;
       break;
-    case LayerType::kBrowser:
+    case LayerType::BROWSER:
       layer_type = kLayerBrowser;
       break;
     default:
@@ -706,7 +719,7 @@ HWC3::Error HWCLayer::SetLayerType(LayerType type) {
 }
 
 HWC3::Error HWCLayer::SetLayerFlag(LayerFlag flag) {
-  compatible_ = (flag == LayerFlag::kCompatible);
+  compatible_ = (flag == LayerFlag::COMPATIBLE);
 
   return HWC3::Error::None;
 }
@@ -787,8 +800,10 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
                                                     const uint32_t *sizes,
                                                     const uint8_t *metadata) {
   if (!keys || !sizes || !metadata) {
-    DLOGE("metadata or sizes or keys is null");
-    return HWC3::Error::BadParameter;
+    DLOGW("metadata or sizes or keys is null");
+    // According to Google, it is expected for the layer metadata in certain scenarios. When this
+    // happens, simply return Error::None. More info on the Google bug (b/275697888)
+    return HWC3::Error::None;
   }
 
   ColorMetaData &color_metadata = layer_->input_buffer.color_metadata;
@@ -818,9 +833,14 @@ HWC3::Error HWCLayer::SetLayerPerFrameMetadataBlobs(uint32_t num_elements,
 }
 
 HWC3::Error HWCLayer::SetLayerBrightness(float brightness) {
-  if (brightness < 0.0f || brightness > 1.0f) {
+  if (std::isnan(brightness) || brightness < 0.0f || brightness > 1.0f) {
     DLOGE("Invalid brightness = %f", brightness);
     return HWC3::Error::BadParameter;
+  }
+
+  // When SDR dimming is disabled, layer brightness needs to be reset for device composition
+  if (brightness != 1.0f && IsSdrDimmingDisabled() && client_requested_ == Composition::DEVICE) {
+    brightness = 1.0f;
   }
 
   if (layer_->layer_brightness != brightness) {
@@ -1290,8 +1310,11 @@ void HWCLayer::SetComposition(const LayerComposition &sdm_composition) {
   if (sdm_composition == kCompositionSDE && layer_->flags.solid_fill != 0) {
     hwc_composition = Composition::SOLID_COLOR;
   }
-  // Update Display Decoration composition
-  if (sdm_composition == kCompositionSDE && layer_->input_buffer.flags.mask_layer != 0) {
+  // Update Display Decoration composition only for A8 mask layer i.e when requested composition
+  // is DISPLAY_DECORATION
+  Composition requested_composition = GetClientRequestedCompositionType();
+  if ((sdm_composition == kCompositionSDE && layer_->input_buffer.flags.mask_layer != 0) &&
+      (requested_composition == Composition::DISPLAY_DECORATION)) {
     hwc_composition = Composition::DISPLAY_DECORATION;
   }
   device_selected_ = hwc_composition;

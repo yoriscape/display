@@ -564,6 +564,7 @@ class HWCDisplay : public DisplayEventHandler {
   std::deque<TransientRefreshRateInfo> transient_refresh_rate_info_;
   std::mutex transient_refresh_rate_lock_;
   std::mutex active_config_lock_;
+  std::mutex frame_dump_config_lock_;
   int active_config_index_ = -1;
   uint32_t active_refresh_rate_ = 0;
   SecureEvent secure_event_ = kSecureEventMax;
@@ -576,8 +577,10 @@ class HWCDisplay : public DisplayEventHandler {
 
   // Members for N frame dump to file
   bool dump_output_to_file_ = false;
-  uint32_t dump_frame_count_ = 0;
-  uint32_t dump_frame_index_ = 0;
+  uint32_t dump_frame_count_ = 0;        // tracks output frames count which to be dump
+  uint32_t dump_frame_index_ = 0;        // tracks current output frame index which to be dump
+  uint32_t dump_input_frame_count_ = 0;  // tracks input frames count which to be dump
+  uint32_t dump_input_frame_index_ = 0;  // tracks current input frame index which to be dump
   bool dump_input_layers_ = false;
   BufferInfo output_buffer_info_ = {};
   void *output_buffer_base_ = nullptr;  // points to base address of output_buffer_info_

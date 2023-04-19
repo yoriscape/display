@@ -23,7 +23,7 @@ class ComposerTestService {
 
  private:
   int ConfigureCWBTest(const android::Parcel *input_parcel);
-  int StopCWBTest();
+  int StopCWBTest(const android::Parcel *input_parcel);
 
   SDMCompBufferAllocator buffer_allocator_;
   DynLib cwb_test_lib_;

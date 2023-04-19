@@ -36,7 +36,7 @@ class CWBTestInterface {
   virtual int ConfigureCWB(struct CWBConfig cwb_config) = 0;
 
   /* stop CWB test */
-  virtual int StopTest() = 0;
+  virtual int StopTest(DisplayConfig::DisplayType disp) = 0;
 
  protected:
   virtual ~CWBTestInterface() { }

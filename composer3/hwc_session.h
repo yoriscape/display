@@ -112,6 +112,7 @@ class HWCUEventListener {
 class HWCUEvent {
  public:
   HWCUEvent();
+  void Deinit();
   static void UEventThreadTop(HWCUEvent *hwc_event);
   static void UEventThreadBottom(HWCUEvent *hwc_event);
   void Register(HWCUEventListener *uevent_listener);
@@ -126,6 +127,7 @@ class HWCUEvent {
 
   HWCUEventListener *uevent_listener_ = nullptr;
   bool init_done_ = false;
+  std::thread hot_plug_thread_;
 };
 
 constexpr int32_t kDataspaceSaturationMatrixCount = 16;
@@ -150,6 +152,11 @@ class HWCSession : HWCUEventListener,
     kClientTeardownCWB,
     kClientTrustedUI,
     kClientMax
+  };
+
+  enum CwbConfigFlag {
+    kCwbFlagPuAsCwbROI,
+    kCwbFlagAvoidRefresh,
   };
 
   HWCSession();
@@ -700,6 +707,7 @@ class HWCSession : HWCUEventListener,
   std::mutex tui_handler_lock_;
   std::future<int> tui_event_handler_future_;
   std::future<int> tui_callback_handler_future_;
+  bool disable_get_screen_decorator_support_ = false;
 };
 }  // namespace sdm
 

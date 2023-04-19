@@ -521,6 +521,13 @@ ScopedAStatus DisplayConfigAIDL::getDebugProperty(const std::string &prop_name,
   return ScopedAStatus::ok();
 }
 
+ScopedAStatus DisplayConfigAIDL::setClientUp() {
+  hwc_session_->is_client_up_ = true;
+  sdm::HWCDisplay *hwc_display = hwc_session_->hwc_display_[HWC_DISPLAY_PRIMARY];
+  hwc_display->MarkClientActive(true);
+  return ScopedAStatus::ok();
+}
+
 ScopedAStatus DisplayConfigAIDL::getActiveBuiltinDisplayAttributes(Attributes *attr) {
   int error = -EINVAL;
   Display disp_id = hwc_session_->GetActiveBuiltinDisplay();

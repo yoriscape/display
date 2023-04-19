@@ -235,13 +235,19 @@ void HWCUEvent::UEventThreadBottom(HWCUEvent *hwc_uevent) {
   }
 }
 
+void HWCUEvent::Deinit() {
+  if (hot_plug_thread_.joinable()) {
+    evt_cv_.notify_one();
+    hot_plug_thread_.join();
+  }
+}
+
 HWCUEvent::HWCUEvent() {
   std::unique_lock<std::mutex> caller_lock(mutex_);
   std::thread thread_top(HWCUEvent::UEventThreadTop, this);
   thread_top.detach();
 
-  std::thread thread_bottom(HWCUEvent::UEventThreadBottom, this);
-  thread_bottom.detach();
+  hot_plug_thread_ = std::thread(HWCUEvent::UEventThreadBottom, this);
 
   caller_cv_.wait(caller_lock);
 }
@@ -328,6 +334,11 @@ int HWCSession::Init() {
   async_vds_creation_ = (value == 1);
   DLOGI("async_vds_creation: %d", async_vds_creation_);
 
+  value = 0;
+  Debug::Get()->GetProperty(DISABLE_GET_SCREEN_DECORATOR_SUPPORT, &value);
+  disable_get_screen_decorator_support_ = (value == 1);
+  DLOGI("disable_get_screen_decorator_support: %d", disable_get_screen_decorator_support_);
+
   DLOGI("Initializing supported display slots");
   InitSupportedDisplaySlots();
   DLOGI("Initializing supported display slots...done!");
@@ -366,6 +377,9 @@ void HWCSession::PostInit() {
 }
 
 int HWCSession::Deinit() {
+  g_hwc_uevent_.Register(nullptr);
+  g_hwc_uevent_.Deinit();
+
   // Destroy all connected displays
   DestroyDisplay(&map_info_primary_);
 
@@ -386,8 +400,6 @@ int HWCSession::Deinit() {
   }
 
   if (!null_display_mode_) {
-    g_hwc_uevent_.Register(nullptr);
-
     DisplayError error = CoreInterface::DestroyCore();
     if (error != kErrorNone) {
       DLOGE("Display core de-initialization failed. Error = %d", error);
@@ -570,12 +582,11 @@ void HWCSession::GetCapabilities(uint32_t *outCount, int32_t *outCapabilities) {
   if (Debug::Get()->GetProperty(DISABLE_SKIP_VALIDATE_PROP, &value) == kErrorNone) {
     disable_skip_validate = (value == 1);
   }
-  uint32_t count = 1 + (disable_skip_validate ? 0 : 1);
+  uint32_t count = disable_skip_validate ? 0 : 1;
 
   if (outCapabilities != nullptr && (*outCount >= count)) {
-    outCapabilities[0] = INT32(Capability::SKIP_CLIENT_COLOR_TRANSFORM);
     if (!disable_skip_validate) {
-      outCapabilities[1] = INT32(Capability::SKIP_VALIDATE);
+      outCapabilities[0] = INT32(Capability::SKIP_VALIDATE);
     }
   }
   *outCount = count;
@@ -838,6 +849,9 @@ HWC3::Error HWCSession::GetReleaseFences(Display display, uint32_t *out_num_elem
 
 HWC3::Error HWCSession::getDisplayDecorationSupport(Display display, PixelFormat_V3 *format,
                                                     AlphaInterpretation *alpha) {
+  if (disable_get_screen_decorator_support_) {
+    return HWC3::Error::Unsupported;
+  }
   return CallDisplayFunction(display, &HWCDisplay::getDisplayDecorationSupport, format, alpha);
 }
 
@@ -2205,8 +2219,12 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
   }
   if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    // Option to include PU ROI in CWB ROI
-    cwb_config.pu_as_cwb_roi = static_cast<bool>(input_parcel->readInt32());
+    std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+    // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
+    cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+    // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
+    // corresponding bit of CWB flag.
+    cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
   }
 
   LayerRect &cwb_roi = cwb_config.cwb_roi;
@@ -2454,6 +2472,10 @@ void HWCSession::DynamicDebug(const android::Parcel *input_parcel) {
 
     case qService::IQService::DEBUG_IWE:
       HWCDebugHandler::DebugIWE(enable, verbose_level);
+      break;
+
+    case qService::IQService::DEBUG_WB_USAGE:
+      HWCDebugHandler::DebugWbUsage(enable, verbose_level);
       break;
 
     default:
@@ -4100,7 +4122,7 @@ HWC3::Error HWCSession::SetActiveConfigWithConstraints(
 }
 
 int HWCSession::WaitForCommitDoneAsync(hwc2_display_t display, int client_id) {
-  std::chrono::milliseconds span(5000);
+  std::chrono::milliseconds span(2000);
   if (commit_done_future_[display].valid()) {
     std::future_status status = commit_done_future_[display].wait_for(std::chrono::milliseconds(0));
     if (status != std::future_status::ready) {
@@ -4194,13 +4216,6 @@ android::status_t HWCSession::TUIEventHandler(int disp_id, TUIEventType event_ty
       return -EBUSY;
     }
   }
-  if (tui_callback_handler_future_.valid()) {
-    std::future_status status = tui_callback_handler_future_.wait_for(std::chrono::milliseconds(0));
-    if (status != std::future_status::ready) {
-      DLOGW("callback handler thread is busy with previous work!!");
-      return -EBUSY;
-    }
-  }
   switch (event_type) {
     case TUIEventType::PREPARE_TUI_TRANSITION:
       tui_event_handler_future_ =
@@ -4219,6 +4234,14 @@ android::status_t HWCSession::TUIEventHandler(int disp_id, TUIEventType event_ty
     default:
       DLOGE("Invalid event %d", event_type);
       return -EINVAL;
+  }
+  if (tui_callback_handler_future_.valid()) {
+    std::future_status status =
+        tui_callback_handler_future_.wait_for(std::chrono::milliseconds(1000));
+    if (status != std::future_status::ready) {
+      DLOGW("callback handler thread is busy with previous work!!");
+      return -EBUSY;
+    }
   }
   tui_callback_handler_future_ = std::async(
       [](HWCSession *session, int disp_id, TUIEventType event_type) {
@@ -4381,7 +4404,7 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
 
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
-    int ret = WaitForCommitDone(target_display, kClientTrustedUI);
+    int ret = WaitForCommitDoneAsync(target_display, kClientTrustedUI);
     if (ret != 0) {
       if (ret != -ETIMEDOUT) {
         DLOGE("Device unassign failed with error %d", ret);

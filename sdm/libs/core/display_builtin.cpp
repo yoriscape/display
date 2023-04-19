@@ -281,7 +281,7 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
     }
   }
   error = ChangeFps();
-  lower_fps_ = disp_layer_stack_.info.lower_fps;
+  lower_fps_ = disp_layer_stack_->info.lower_fps;
 
   return kErrorNotValidated;
 }
@@ -320,11 +320,6 @@ DisplayError DisplayBuiltIn::Prepare(LayerStack *layer_stack) {
   if (error == kErrorNeedsLutRegen && (ForceToneMapUpdate(layer_stack) == kErrorNone)) {
     return kErrorNone;
   }
-
-  DTRACE_BEGIN("Reset DispLayerStack");
-  // Clean display layer stack for reuse.
-  disp_layer_stack_ = DispLayerStack();
-  DTRACE_END();
 
   error = HandleSPR();
   if (error != kErrorNone) {
@@ -365,10 +360,10 @@ void DisplayBuiltIn::CacheFrameROI() {
   right_frame_roi_ = {};
 
   // Cache the Frame ROI.
-  if (disp_layer_stack_.info.left_frame_roi.size() &&
-      disp_layer_stack_.info.right_frame_roi.size()) {
-    left_frame_roi_ = disp_layer_stack_.info.left_frame_roi.at(0);
-    right_frame_roi_ = disp_layer_stack_.info.right_frame_roi.at(0);
+  if (disp_layer_stack_->info.left_frame_roi.size() &&
+      disp_layer_stack_->info.right_frame_roi.size()) {
+    left_frame_roi_ = disp_layer_stack_->info.left_frame_roi.at(0);
+    right_frame_roi_ = disp_layer_stack_->info.right_frame_roi.at(0);
   }
 }
 
@@ -389,11 +384,11 @@ void DisplayBuiltIn::UpdateQsyncMode() {
              display_type_, mode);
   }
 
-  disp_layer_stack_.info.hw_avr_info.update = (mode != active_qsync_mode_) || needs_avr_update_;
-  disp_layer_stack_.info.hw_avr_info.mode = GetAvrMode(mode);
+  disp_layer_stack_->info.hw_avr_info.update = (mode != active_qsync_mode_) || needs_avr_update_;
+  disp_layer_stack_->info.hw_avr_info.mode = GetAvrMode(mode);
 
-  DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d",
-           display_id_, display_type_, disp_layer_stack_.info.hw_avr_info.update, mode);
+  DLOGV_IF(kTagDisplay, "display %d-%d update: %d mode: %d", display_id_, display_type_,
+           disp_layer_stack_->info.hw_avr_info.update, mode);
 
   // Store active mde.
   active_qsync_mode_ = mode;
@@ -645,7 +640,7 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
 }
 
 void DisplayBuiltIn::PreCommit(LayerStack *layer_stack) {
-  uint32_t app_layer_count = disp_layer_stack_.info.app_layer_count;
+  uint32_t app_layer_count = disp_layer_stack_->info.app_layer_count;
 
   // Enabling auto refresh is async and needs to happen before commit ioctl
   if (hw_panel_info_.mode == kModeCommand) {
@@ -966,7 +961,7 @@ DisplayError DisplayBuiltIn::PostCommit(HWLayersInfo *hw_layers_info) {
   }
 
   clock_gettime(CLOCK_MONOTONIC, &idle_timer_start_);
-  int idle_time_ms = disp_layer_stack_.info.set_idle_time_ms;
+  int idle_time_ms = disp_layer_stack_->info.set_idle_time_ms;
   if (idle_time_ms >= 0) {
     hw_intf_->SetIdleTimeoutMs(UINT32(idle_time_ms));
     idle_time_ms_ = idle_time_ms;
@@ -1704,9 +1699,9 @@ std::string DisplayBuiltIn::Dump() {
   os << " DrawMethod: " << draw_method_;
   os << "\nstate: " << state_ << " vsync on: " << vsync_enable_
      << " max. mixer stages: " << max_mixer_stages_;
-  if (disp_layer_stack_.info.noise_layer_info.enable) {
-    os << "\nNoise z-orders: [" << disp_layer_stack_.info.noise_layer_info.zpos_noise << "," <<
-        disp_layer_stack_.info.noise_layer_info.zpos_attn << "]";
+  if (disp_layer_stack_->info.noise_layer_info.enable) {
+    os << "\nNoise z-orders: [" << disp_layer_stack_->info.noise_layer_info.zpos_noise << ","
+       << disp_layer_stack_->info.noise_layer_info.zpos_attn << "]";
   }
   os << "\nnum configs: " << num_modes << " active config index: " << active_index;
   os << "\nDisplay Attributes:";
@@ -1761,19 +1756,19 @@ std::string DisplayBuiltIn::Dump() {
      << current_color_mode_.gamma << " intent " << current_color_mode_.intent << " Dynamice_range"
      << (curr_dynamic_range == kSdrType ? " SDR" : " HDR");
 
-  uint32_t num_hw_layers = UINT32(disp_layer_stack_.info.hw_layers.size());
+  uint32_t num_hw_layers = UINT32(disp_layer_stack_->info.hw_layers.size());
 
   if (num_hw_layers == 0) {
     os << "\nNo hardware layers programmed";
     return os.str();
   }
 
-  LayerBuffer *out_buffer = disp_layer_stack_.info.output_buffer;
-  if (out_buffer) {
-    os << "\n Output buffer res: " << out_buffer->width << "x" << out_buffer->height
-       << " format: " << GetFormatString(out_buffer->format);
+  if (cwb_active_) {
+    os << "\n Output buffer res: " << cwb_output_buf_.width << "x" << cwb_output_buf_.height
+       << " format: " << GetFormatString(cwb_output_buf_.format);
   }
-  HWLayersInfo &layer_info = disp_layer_stack_.info;
+
+  HWLayersInfo &layer_info = disp_layer_stack_->info;
   for (uint32_t i = 0; i < layer_info.left_frame_roi.size(); i++) {
     LayerRect &l_roi = layer_info.left_frame_roi.at(i);
     LayerRect &r_roi = layer_info.right_frame_roi.at(i);
@@ -1804,11 +1799,11 @@ std::string DisplayBuiltIn::Dump() {
   os << newline;
 
   for (uint32_t i = 0; i < num_hw_layers; i++) {
-    uint32_t layer_index = disp_layer_stack_.info.index.at(i);
+    uint32_t layer_index = disp_layer_stack_->info.index.at(i);
     // hw-layer from hw layers info
-    Layer &hw_layer = disp_layer_stack_.info.hw_layers.at(i);
+    Layer &hw_layer = disp_layer_stack_->info.hw_layers.at(i);
     LayerBuffer *input_buffer = &hw_layer.input_buffer;
-    HWLayerConfig &layer_config = disp_layer_stack_.info.config[i];
+    HWLayerConfig &layer_config = disp_layer_stack_->info.config[i];
     HWRotatorSession &hw_rotator_session = layer_config.hw_rotator_session;
 
     const char *comp_type = GetCompositionName(hw_layer.composition);
@@ -2143,7 +2138,7 @@ bool DisplayBuiltIn::CanCompareFrameROI(LayerStack *layer_stack) {
   if (!hw_panel_info_.partial_update || (hw_panel_info_.left_roi_count != 1) ||
       layer_stack->flags.geometry_changed || layer_stack->flags.skip_present ||
       (layer_stack->layers.size() !=
-       (disp_layer_stack_.info.app_layer_count + stack_fudge_factor))) {
+       (disp_layer_stack_->info.app_layer_count + stack_fudge_factor))) {
     return false;
   }
 
@@ -2179,30 +2174,30 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
     return false;
   }
 
-  if (disp_layer_stack_.info.iwe_target_index != -1) {
+  if (disp_layer_stack_->info.iwe_target_index != -1) {
     return false;
   }
 
-  disp_layer_stack_.info.left_frame_roi.clear();
-  disp_layer_stack_.info.right_frame_roi.clear();
-  disp_layer_stack_.info.dest_scale_info_map.clear();
-  comp_manager_->GenerateROI(display_comp_ctx_, &disp_layer_stack_);
+  disp_layer_stack_->info.left_frame_roi.clear();
+  disp_layer_stack_->info.right_frame_roi.clear();
+  disp_layer_stack_->info.dest_scale_info_map.clear();
+  comp_manager_->GenerateROI(display_comp_ctx_, disp_layer_stack_);
 
-  if (!disp_layer_stack_.info.left_frame_roi.size() ||
-      !disp_layer_stack_.info.right_frame_roi.size()) {
+  if (!disp_layer_stack_->info.left_frame_roi.size() ||
+      !disp_layer_stack_->info.right_frame_roi.size()) {
     return false;
   }
 
   // Compare the cached and calculated Frame ROIs.
-  bool same_roi = IsCongruent(left_frame_roi_, disp_layer_stack_.info.left_frame_roi.at(0)) &&
-                  IsCongruent(right_frame_roi_, disp_layer_stack_.info.right_frame_roi.at(0));
+  bool same_roi = IsCongruent(left_frame_roi_, disp_layer_stack_->info.left_frame_roi.at(0)) &&
+                  IsCongruent(right_frame_roi_, disp_layer_stack_->info.right_frame_roi.at(0));
 
   if (same_roi) {
     // Update Surface Damage rectangle(s) in HW layers.
-    uint32_t hw_layer_count = UINT32(disp_layer_stack_.info.hw_layers.size());
+    uint32_t hw_layer_count = UINT32(disp_layer_stack_->info.hw_layers.size());
     for (uint32_t j = 0; j < hw_layer_count; j++) {
-      Layer &hw_layer = disp_layer_stack_.info.hw_layers.at(j);
-      Layer *sdm_layer = layer_stack->layers.at(disp_layer_stack_.info.index.at(j));
+      Layer &hw_layer = disp_layer_stack_->info.hw_layers.at(j);
+      Layer *sdm_layer = layer_stack->layers.at(disp_layer_stack_->info.index.at(j));
       if (hw_layer.dirty_regions.size() != sdm_layer->dirty_regions.size()) {
         return false;
       }
@@ -2217,7 +2212,7 @@ bool DisplayBuiltIn::CanSkipDisplayPrepare(LayerStack *layer_stack) {
       size_ff++;
     if (layer_stack->flags.demura_present)
       size_ff++;
-    if (disp_layer_stack_.info.flags.noise_present)
+    if (disp_layer_stack_->info.flags.noise_present)
       size_ff++;
 
     for (uint32_t i = 0; i < (layer_stack->layers.size() - size_ff); i++) {
@@ -2234,7 +2229,7 @@ DisplayError DisplayBuiltIn::HandleDemuraLayer(LayerStack *layer_stack) {
     return kErrorParameters;
   }
   std::vector<Layer *> &layers = layer_stack->layers;
-  HWLayersInfo &hw_layers_info = disp_layer_stack_.info;
+  HWLayersInfo &hw_layers_info = disp_layer_stack_->info;
 
   if (comp_manager_->GetDemuraStatus() &&
       comp_manager_->GetDemuraStatusForDisplay(display_id_) &&
@@ -2298,7 +2293,7 @@ DisplayError DisplayBuiltIn::UpdateTransferTime(uint32_t transfer_time) {
 
 DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   std::vector<Layer *> &layers = layer_stack->layers;
-  HWLayersInfo &hw_layers_info = disp_layer_stack_.info;
+  HWLayersInfo &hw_layers_info = disp_layer_stack_->info;
   hw_layers_info.app_layer_count = 0;
   hw_layers_info.gpu_target_index = -1;
   hw_layers_info.stitch_target_index = -1;
@@ -2306,7 +2301,7 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
   hw_layers_info.noise_layer_index = -1;
   hw_layers_info.cwb_target_index = -1;
 
-  disp_layer_stack_.stack = layer_stack;
+  disp_layer_stack_->stack = layer_stack;
   hw_layers_info.flags = layer_stack->flags;
   hw_layers_info.blend_cs = layer_stack->blend_cs;
   hw_layers_info.wide_color_primaries.clear();
@@ -2320,11 +2315,11 @@ DisplayError DisplayBuiltIn::BuildLayerStackStats(LayerStack *layer_stack) {
       hw_layers_info.gpu_target_index = index;
     } else if (layer->composition == kCompositionStitchTarget) {
       hw_layers_info.stitch_target_index = index;
-      disp_layer_stack_.stack->flags.stitch_present = true;
+      disp_layer_stack_->stack->flags.stitch_present = true;
       hw_layers_info.stitch_present = true;
     } else if (layer->composition == kCompositionDemura) {
       hw_layers_info.demura_target_index = index;
-      disp_layer_stack_.stack->flags.demura_present = true;
+      disp_layer_stack_->stack->flags.demura_present = true;
       hw_layers_info.demura_present = true;
       DLOGD_IF(kTagDisplay, "Display %d-%d shall request Demura in this frame", display_id_,
                display_type_);
@@ -2952,9 +2947,9 @@ DisplayError DisplayBuiltIn::ChangeFps() {
     return kErrorParameters;
   }
 
-  bool idle_screen = GetUpdatingAppLayersCount(disp_layer_stack_.stack) == 0;
-  if (!disp_layer_stack_.stack->force_refresh_rate && IdleFallbackLowerFps(idle_screen)
-      && !enable_qsync_idle_) {
+  bool idle_screen = GetUpdatingAppLayersCount(disp_layer_stack_->stack) == 0;
+  if (!disp_layer_stack_->stack->force_refresh_rate && IdleFallbackLowerFps(idle_screen) &&
+      !enable_qsync_idle_) {
     refresh_rate = hw_panel_info_.min_fps;
   }
 
@@ -2963,8 +2958,8 @@ DisplayError DisplayBuiltIn::ChangeFps() {
     if (error != kErrorNone) {
       // Attempt to update refresh rate can fail if rf interference settings is detected.
       // Just drop min fps settting for now.
-      if (disp_layer_stack_.info.lower_fps) {
-        disp_layer_stack_.info.lower_fps = false;
+      if (disp_layer_stack_->info.lower_fps) {
+        disp_layer_stack_->info.lower_fps = false;
       }
       return error;
     }
@@ -2977,7 +2972,7 @@ DisplayError DisplayBuiltIn::ChangeFps() {
 
   // Set safe mode upon success.
   if (enhance_idle_time_ && (refresh_rate == hw_panel_info_.min_fps) &&
-      (disp_layer_stack_.info.lower_fps)) {
+      (disp_layer_stack_->info.lower_fps)) {
     comp_manager_->ProcessIdleTimeout(display_comp_ctx_);
   }
 
@@ -2990,9 +2985,9 @@ DisplayError DisplayBuiltIn::ChangeFps() {
 
 bool DisplayBuiltIn::IdleFallbackLowerFps(bool idle_screen) {
   if (!enhance_idle_time_) {
-    return (disp_layer_stack_.info.lower_fps);
+    return (disp_layer_stack_->info.lower_fps);
   }
-  if (!idle_screen || !disp_layer_stack_.info.lower_fps) {
+  if (!idle_screen || !disp_layer_stack_->info.lower_fps) {
     return false;
   }
 
@@ -3008,8 +3003,8 @@ bool DisplayBuiltIn::IdleFallbackLowerFps(bool idle_screen) {
 uint32_t DisplayBuiltIn::GetUpdatingLayersCount() {
   uint32_t updating_count = 0;
 
-  for (uint i = 0; i < disp_layer_stack_.stack->layers.size(); i++) {
-    auto layer = disp_layer_stack_.stack->layers.at(i);
+  for (uint i = 0; i < disp_layer_stack_->stack->layers.size(); i++) {
+    auto layer = disp_layer_stack_->stack->layers.at(i);
     if (layer->flags.updating) {
       updating_count++;
     }
@@ -3018,7 +3013,7 @@ uint32_t DisplayBuiltIn::GetUpdatingLayersCount() {
 }
 
 uint32_t DisplayBuiltIn::GetOptimalRefreshRate(bool one_updating_layer) {
-  LayerStack *layer_stack = disp_layer_stack_.stack;
+  LayerStack *layer_stack = disp_layer_stack_->stack;
   if (layer_stack->force_refresh_rate) {
     return layer_stack->force_refresh_rate;
   }
@@ -3033,7 +3028,7 @@ uint32_t DisplayBuiltIn::GetOptimalRefreshRate(bool one_updating_layer) {
 }
 
 uint32_t DisplayBuiltIn::CalculateMetaDataRefreshRate() {
-  LayerStack *layer_stack = disp_layer_stack_.stack;
+  LayerStack *layer_stack = disp_layer_stack_->stack;
   uint32_t metadata_refresh_rate = 0;
   if (!layer_stack->flags.use_metadata_refresh_rate) {
     return 0;
