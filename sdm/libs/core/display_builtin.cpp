@@ -218,6 +218,7 @@ DisplayError DisplayBuiltIn::Init() {
 }
 
 DisplayError DisplayBuiltIn::Deinit() {
+  dpps_info_.Deinit();
   {
     ClientLock lock(disp_mutex_);
 
@@ -225,8 +226,6 @@ DisplayError DisplayBuiltIn::Deinit() {
       vm_cb_intf_->Deinit();
       delete vm_cb_intf_;
     }
-
-    dpps_info_.Deinit();
 
     if (demura_) {
       SetDemuraIntfStatus(false);
@@ -1990,16 +1989,22 @@ void DppsInfo::Init(DppsPropIntf *intf, const std::string &panel_name) {
   return;
 
 exit:
-  Deinit();
+  Deinit_nolock();
   dpps_intf_ = new DppsDummyImpl();
 }
 
-void DppsInfo::Deinit() {
+void DppsInfo::Deinit_nolock() {
   if (dpps_intf_) {
     dpps_intf_->Deinit();
     dpps_intf_ = NULL;
   }
   dpps_impl_lib_.~DynLib();
+  DLOGI("Dpps info deinit done");
+}
+
+void DppsInfo::Deinit() {
+  std::lock_guard<std::mutex> guard(lock_);
+  Deinit_nolock();
 }
 
 void DppsInfo::DppsNotifyOps(enum DppsNotifyOps op, void *payload, size_t size) {

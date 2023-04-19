@@ -106,6 +106,8 @@ class DppsInfo {
   static std::vector<int32_t> display_id_;
   std::mutex lock_;
   DppsInterface *(*GetDppsInterface)() = NULL;
+
+  void Deinit_nolock();
 };
 
 class DisplayIPCVmCallbackImpl : public IPCVmCallbackIntf {
