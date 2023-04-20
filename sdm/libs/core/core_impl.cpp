@@ -465,13 +465,20 @@ DisplayError CoreImpl::ReserveDemuraResources() {
       DLOGI("[%u] Needs Demura resources %u", req.first, req_cnt);
       // Reserving demura resources requires knowledge of which rect to reserve when the req_cnt
       // is 1. As the HW pipeline for any display is not known yet, we shall assume primary display
-      // takes 0 and non-primary takes 1. When req_cnt > 1, pass in -1
+      // takes 0 and non-primary takes 1. When req_cnt == 2 (Dual LM topology usecase), pass in -1
+      // For rest of the topology return error as they are not supported for demura.
       int8_t preferred_rect = -1;
       if (req_cnt == 1) {
         HWDisplayInfo &info = hw_displays_info_[req.first];
         preferred_rect = info.is_primary ? 0 : 1;
         DLOGI("[%u] is single LM. Requesting Demura rect %d", req.first, preferred_rect);
+      } else if (req_cnt == 2) {
+        preferred_rect = -1;
+      } else {
+        DLOGE("Invalid demura Requirement count = %d", req_cnt);
+        return kErrorResources;
       }
+
       if ((err = comp_mgr_.ReserveDemuraFetchResources(req.first, preferred_rect)) !=
           kErrorNone) {
         DLOGE("Failed to reserve resources error = %d", err);
