@@ -524,6 +524,11 @@ unsigned int GetSize(const BufferInfo &info, unsigned int alignedw, unsigned int
       case HAL_PIXEL_FORMAT_NV21_ZSL:
         size = ALIGN((alignedw * alignedh) + (alignedw * alignedh) / 2, SIZE_4K);
         break;
+      case static_cast<int>(aidl::android::hardware::graphics::common::PixelFormat::RGBA_10101010):
+      case static_cast<int>(aidl::android::hardware::graphics::common::PixelFormat::RG_1616_UINT):
+      case static_cast<int>(aidl::android::hardware::graphics::common::PixelFormat::R_16_UINT):
+        ALOGW("%s: Pixel format: 0x%x is not supported by gralloc", __FUNCTION__, format);
+        return 0;
       default:
         ALOGE("%s: Unrecognized pixel format: 0x%x", __FUNCTION__, format);
         return 0;
