@@ -206,6 +206,7 @@
 #define SECURE_PREVIEW_ONLY_PROP             GRALLOC_PROP("secure_preview_only")
 #define USE_DMA_BUF_HEAPS_PROP               GRALLOC_PROP("use_dma_buf_heaps")
 #define USE_SYSTEM_HEAP_FOR_SENSORS_PROP     GRALLOC_PROP("use_system_heap_for_sensors")
+#define HW_SUPPORTS_UBWCP                    GRALLOC_PROP("hw_supports_ubwcp")
 
 // Add all vendor.gralloc.properties above
 
