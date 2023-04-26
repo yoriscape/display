@@ -68,7 +68,6 @@ void __llvm_profile_try_write_file(void);
 
 namespace sdm {
 
-static HWCUEvent g_hwc_uevent_;
 Locker HWCSession::locker_[HWCCallbacks::kNumDisplays];
 bool HWCSession::pending_power_mode_[HWCCallbacks::kNumDisplays];
 Locker HWCSession::power_state_[HWCCallbacks::kNumDisplays];
@@ -138,26 +137,52 @@ int GetEventValue(const char *uevent_data, int length, const char *event_info) {
   return -1;
 }
 
-void HWCUEvent::UEventThreadTop(HWCUEvent *hwc_uevent) {
+void HWCSession::ParseUEvent(char *uevent_data, int length) {
+  static constexpr uint32_t uevent_max_count = 3;
+  const char *str_status = GetTokenValue(uevent_data, length, "status=");
+  const char *str_sstmst = GetTokenValue(uevent_data, length, "HOTPLUG=");
+  const char *str_mst = GetTokenValue(uevent_data, length, "MST_HOTPLUG=");
+
+  if (!str_status && !str_mst && !str_sstmst) {
+    return;
+  }
+
+  if (!strcasestr(uevent_data, HWC_UEVENT_DRM_EXT_HOTPLUG)) {
+    return;
+  }
+
+  hpd_bpp_ = GetEventValue(uevent_data, length, "bpp=");
+  hpd_pattern_ = GetEventValue(uevent_data, length, "pattern=");
+
+  DLOGI("UEvent = %s, status = %s, HOTPLUG = %s (SST/MST)%s%s, bpp = %d, pattern = %d", uevent_data,
+        str_status ? str_status : "NULL", str_sstmst ? str_sstmst : "NULL",
+        str_mst ? ", MST_HOTPLUG = " : "", str_mst ? str_mst : "", hpd_bpp_, hpd_pattern_);
+
+  if (str_status) {
+    hpd_connected_ = strncmp(str_status, "connected", strlen("connected")) == 0;
+    DLOGI("Connected = %d", hpd_connected_);
+  }
+
+  uevent_counter_++;
+  std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
+  if (uevent_counter_.load() > uevent_max_count) {
+    uevent_counter_.store(uevent_max_count);
+  }
+
+  hpd_cv_.notify_one();
+}
+
+void HWCSession::HpdThreadTop() {
+  DLOGI("Starting!");
   const char *uevent_thread_name = "HWC_UeventThreadTop";
-  const uint32_t uevent_max_count = 3;
 
   prctl(PR_SET_NAME, uevent_thread_name, 0, 0, 0);
   setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
   int status = uevent_init();
   if (!status) {
-    std::unique_lock<std::mutex> caller_lock(hwc_uevent->mutex_);
-    hwc_uevent->caller_cv_.notify_one();
     DLOGE("Failed to init uevent with err %d", status);
     return;
-  }
-
-  {
-    // Signal caller thread that worker thread is ready to listen to events.
-    std::unique_lock<std::mutex> caller_lock(hwc_uevent->mutex_);
-    hwc_uevent->init_done_ = true;
-    hwc_uevent->caller_cv_.notify_one();
   }
 
   while (1) {
@@ -166,97 +191,35 @@ void HWCUEvent::UEventThreadTop(HWCUEvent *hwc_uevent) {
     // keep last 2 zeros to ensure double 0 termination
     int length = uevent_next_event(uevent_data, INT32(sizeof(uevent_data)) - 2);
 
-    // MST hotplug will not carry connection status/test pattern etc.
-    // Pluggable display handler will check all connection status' and take action accordingly.
-    const char *str_status = GetTokenValue(uevent_data, length, "status=");
-    const char *str_sstmst = GetTokenValue(uevent_data, length, "HOTPLUG=");
-
-    // Check MST_HOTPLUG for backward compatibility.
-    const char *str_mst = GetTokenValue(uevent_data, length, "MST_HOTPLUG=");
-    if (!str_status && !str_mst && !str_sstmst) {
-      continue;
-    }
-
-    if (!strcasestr(uevent_data, HWC_UEVENT_DRM_EXT_HOTPLUG)) {
-      continue;
-    }
-
-    hwc_uevent->uevent_listener_->hpd_bpp_ = GetEventValue(uevent_data, length, "bpp=");
-    hwc_uevent->uevent_listener_->hpd_pattern_ = GetEventValue(uevent_data, length, "pattern=");
-    DLOGI("UEvent = %s, status = %s, HOTPLUG = %s (SST/MST)%s%s, bpp = %d, pattern = %d",
-          uevent_data, str_status ? str_status : "NULL", str_sstmst ? str_sstmst : "NULL",
-          str_mst ? ", MST_HOTPLUG = " : "", str_mst ? str_mst : "",
-          hwc_uevent->uevent_listener_->hpd_bpp_, hwc_uevent->uevent_listener_->hpd_pattern_);
-
-    // scope of lock to this block only, so that caller is free to set event handler to nullptr;
-    {
-      std::lock_guard<std::mutex> guard(hwc_uevent->mutex_);
-
-      if (hwc_uevent->uevent_listener_) {
-        if (str_status) {
-          hwc_uevent->uevent_listener_->connected =
-              (strncmp(str_status, "connected", strlen("connected")) == 0);
-          DLOGI("Connected = %d", hwc_uevent->uevent_listener_->connected);
-        }
-
-        hwc_uevent->uevent_listener_->uevent_counter_++;
-        std::unique_lock<std::mutex> evt_lock(hwc_uevent->evt_mutex_);
-        if (hwc_uevent->uevent_listener_->uevent_counter_.load() > uevent_max_count) {
-          hwc_uevent->uevent_listener_->uevent_counter_.store(uevent_max_count);
-        }
-        hwc_uevent->evt_cv_.notify_one();
-      } else {
-        DLOGW("UEvent dropped. No uevent listener.");
-      }
-    }
+    ParseUEvent(uevent_data, length);
   }
+  DLOGI("Ending!");
 }
 
-void HWCUEvent::UEventThreadBottom(HWCUEvent *hwc_uevent) {
+void HWCSession::HpdThreadBottom() {
+  DLOGI("Starting!");
   const char *uevent_thread_name = "HWC_UeventThreadBottom";
 
   prctl(PR_SET_NAME, uevent_thread_name, 0, 0, 0);
   setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
-  std::unique_lock<std::mutex> evt_lock(hwc_uevent->evt_mutex_);
+  std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
   while (1) {
-    hwc_uevent->evt_cv_.wait(evt_lock);
+    hpd_cv_.wait(evt_lock);
 
-    if (!hwc_uevent->uevent_listener_) {
+    if (hpd_thread_should_terminate_) {
       break;
     }
 
-    while (hwc_uevent->uevent_listener_->uevent_counter_.load() > 0) {
+    while (uevent_counter_.load() > 0) {
       evt_lock.unlock();
-      hwc_uevent->uevent_listener_->UEventHandler(hwc_uevent->uevent_listener_->connected);
+      UEventHandler();
       evt_lock.lock();
-      hwc_uevent->uevent_listener_->uevent_counter_--;
+
+      uevent_counter_--;
     }
   }
-}
-
-void HWCUEvent::Deinit() {
-  if (hot_plug_thread_.joinable()) {
-    evt_cv_.notify_one();
-    hot_plug_thread_.join();
-  }
-}
-
-HWCUEvent::HWCUEvent() {
-  std::unique_lock<std::mutex> caller_lock(mutex_);
-  std::thread thread_top(HWCUEvent::UEventThreadTop, this);
-  thread_top.detach();
-
-  hot_plug_thread_ = std::thread(HWCUEvent::UEventThreadBottom, this);
-
-  caller_cv_.wait(caller_lock);
-}
-
-void HWCUEvent::Register(HWCUEventListener *uevent_listener) {
-  DLOGI("Set uevent listener = %p", uevent_listener);
-
-  std::lock_guard<std::mutex> obj(mutex_);
-  uevent_listener_ = uevent_listener;
+  DLOGI("Ending!");
 }
 
 HWCSession::HWCSession() : cwb_(this) {}
@@ -274,13 +237,6 @@ int HWCSession::Init() {
 
   int status = -EINVAL;
   const char *qservice_name = "display.qservice";
-
-  if (!g_hwc_uevent_.InitDone()) {
-    DLOGE("HWCUEvent initialization is not done!");
-    return status;
-  } else {
-    DLOGI("HWCUEvent initialization confirmed to be completed");
-  }
 
   // Start QService and connect to it.
   DLOGI("Initializing QService");
@@ -317,13 +273,6 @@ int HWCSession::Init() {
                                       &enable_primary_reconfig_req_);
   DLOGI("enable_primary_reconfig_req_: %d", enable_primary_reconfig_req_);
 
-  if (!null_display_mode_) {
-    g_hwc_uevent_.Register(this);
-    DLOGI("Registered HWCSession as the HWCUEvent handler");
-  } else {
-    DLOGI("Did not register HWCSession as the HWCUEvent handler");
-  }
-
   value = 0;  // Default value when property is not present.
   Debug::Get()->GetProperty(ENABLE_ASYNC_POWERMODE, &value);
   async_powermode_ = (value == 1);
@@ -356,13 +305,38 @@ int HWCSession::Init() {
   }
 
   is_composer_up_ = true;
+
   StartServices();
-
   PostInit();
-
   GetVirtualDisplayList();
+  HpdInit();
+
   DLOGI("Initializing HWCSession...done!");
   return 0;
+}
+
+void HWCSession::HpdInit() {
+  if (null_display_mode_) {
+    return;
+  }
+
+  hpd_thread_ = std::thread(&HWCSession::HpdThreadBottom, this);
+
+  // Top thread should be detached as it uses uevent_next_event()
+  // and we can't wake it from main thread.
+  std::thread(&HWCSession::HpdThreadTop, this).detach();
+}
+
+void HWCSession::HpdDeinit() {
+  if (null_display_mode_) {
+    return;
+  }
+
+  if (hpd_thread_.joinable()) {
+    hpd_thread_should_terminate_ = true;
+    hpd_cv_.notify_one();
+    hpd_thread_.join();
+  }
 }
 
 void HWCSession::PostInit() {
@@ -377,8 +351,7 @@ void HWCSession::PostInit() {
 }
 
 int HWCSession::Deinit() {
-  g_hwc_uevent_.Register(nullptr);
-  g_hwc_uevent_.Deinit();
+  HpdDeinit();
 
   // Destroy all connected displays
   DestroyDisplay(&map_info_primary_);
@@ -2777,7 +2750,7 @@ android::status_t HWCSession::SetPanelLuminanceAttributes(const android::Parcel 
   return 0;
 }
 
-void HWCSession::UEventHandler(int connected) {
+void HWCSession::UEventHandler() {
   // Drop hotplug uevents until SurfaceFlinger (the client) is connected. The equivalent of hotplug
   // uevent handling will be done once when SurfaceFlinger connects, at RegisterCallback(). Since
   // HandlePluggableDisplays() reads the latest connection states of all displays, no uevent is
@@ -2796,8 +2769,8 @@ void HWCSession::UEventHandler(int connected) {
   }
 
   // Pass on legacy HDMI hot-plug event
-  if (connected != -1) {
-    qservice_->onHdmiHotplug(connected);
+  if (hpd_connected_ != -1) {
+    qservice_->onHdmiHotplug(hpd_connected_);
   }
 }
 
