@@ -365,12 +365,12 @@ HWC3::Error HWCDisplayBuiltIn::SetPowerMode(PowerMode mode, bool teardown) {
   if (status != HWC3::Error::None) {
     return status;
   }
-  DLOGV_IF(
-      kTagClient, "Setting Power State as \'%s\' for %d-%d",
-      (mode == PowerMode::ON) ? "ON" : (mode == PowerMode::OFF) ? "OFF" : (mode == PowerMode::DOZE)
-                                                                              ? "DOZE"
-                                                                              : "DOZE_SUSPEND",
-      sdm_id_, type_);
+  DLOGV_IF(kTagClient, "Setting Power State as \'%s\' for %d-%d",
+           (mode == PowerMode::ON)     ? "ON"
+           : (mode == PowerMode::OFF)  ? "OFF"
+           : (mode == PowerMode::DOZE) ? "DOZE"
+                                       : "DOZE_SUSPEND",
+           sdm_id_, type_);
   if (cpu_hint_) {
     switch (mode) {
       case PowerMode::DOZE:

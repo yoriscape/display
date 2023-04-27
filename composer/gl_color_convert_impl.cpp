@@ -132,8 +132,7 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
   EGLint egl_context_attrib_list[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE, EGL_NONE};
-  ctx_.egl_context =
-      eglCreateContext(ctx_.egl_display, egl_config, NULL, egl_context_attrib_list);
+  ctx_.egl_context = eglCreateContext(ctx_.egl_display, egl_config, NULL, egl_context_attrib_list);
 
   // eglCreatePbufferSurface creates an off-screen pixel buffer surface and returns its handle
   EGLint egl_surface_attrib_list[] = {EGL_WIDTH,
@@ -143,8 +142,7 @@ int GLColorConvertImpl::CreateContext(GLRenderTarget target, bool secure) {
                                       secure ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
                                       secure ? EGL_TRUE : EGL_NONE,
                                       EGL_NONE};
-  ctx_.egl_surface =
-      eglCreatePbufferSurface(ctx_.egl_display, egl_config, egl_surface_attrib_list);
+  ctx_.egl_surface = eglCreatePbufferSurface(ctx_.egl_display, egl_config, egl_surface_attrib_list);
 
   // eglMakeCurrent attaches rendering context to rendering surface.
   MakeCurrent(&ctx_);

@@ -54,10 +54,10 @@
 
 using android::hardware::hidl_handle;
 using android::hardware::hidl_vec;
-using vendor::qti::hardware::display::mapperextensions::V1_0::PlaneLayout;
 using android::hardware::graphics::common::V1_2::PixelFormat;
 using android::hardware::graphics::mapper::V4_0::BufferDescriptor;
 using android::hardware::graphics::mapper::V4_0::Error;
+using vendor::qti::hardware::display::mapperextensions::V1_0::PlaneLayout;
 using MapperExtError = vendor::qti::hardware::display::mapperextensions::V1_0::Error;
 using vendor::qti::hardware::display::mapper::V4_0::IQtiMapper;
 
@@ -339,12 +339,12 @@ int HWCBufferAllocator::GetFd(void *buf, int &fd) {
 int HWCBufferAllocator::GetAllocationSize(void *buf, uint32_t &alloc_size) {
   uint64_t tmp_alloc_size;
   auto err = Error::UNSUPPORTED;
-  mapper_->get(buf, android::gralloc4::MetadataType_AllocationSize, [&](const auto _error,
-                                                                        const auto _bytestream) {
-    if (_error == Error::NONE)
-      err =
-          static_cast<Error>(android::gralloc4::decodeAllocationSize(_bytestream, &tmp_alloc_size));
-  });
+  mapper_->get(buf, android::gralloc4::MetadataType_AllocationSize,
+               [&](const auto _error, const auto _bytestream) {
+                 if (_error == Error::NONE)
+                   err = static_cast<Error>(
+                       android::gralloc4::decodeAllocationSize(_bytestream, &tmp_alloc_size));
+               });
   if (err == Error::NONE) {
     alloc_size = static_cast<uint32_t>(tmp_alloc_size);
     return kErrorNone;
@@ -355,11 +355,12 @@ int HWCBufferAllocator::GetAllocationSize(void *buf, uint32_t &alloc_size) {
 int HWCBufferAllocator::GetBufferId(void *buf, uint64_t &id) {
   uint64_t tmp_id;
   auto err = Error::UNSUPPORTED;
-  mapper_->get(buf, android::gralloc4::MetadataType_BufferId, [&](const auto _error,
-                                                                  const auto _bytestream) {
-    if (_error == Error::NONE)
-      err = static_cast<Error>(android::gralloc4::decodeBufferId(_bytestream, &tmp_id));
-  });
+  mapper_->get(buf, android::gralloc4::MetadataType_BufferId,
+               [&](const auto _error, const auto _bytestream) {
+                 if (_error == Error::NONE)
+                   err =
+                       static_cast<Error>(android::gralloc4::decodeBufferId(_bytestream, &tmp_id));
+               });
   if (err == Error::NONE) {
     id = tmp_id;
     return kErrorNone;

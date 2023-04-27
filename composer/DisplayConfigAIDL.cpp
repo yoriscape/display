@@ -36,8 +36,8 @@
 
 #include "DisplayConfigAIDL.h"
 
-using sdm::Locker;
 using ::aidl::android::hardware::common::NativeHandle;
+using sdm::Locker;
 
 namespace aidl {
 namespace vendor {
