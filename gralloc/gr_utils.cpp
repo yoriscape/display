@@ -31,8 +31,11 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
+#ifndef QMAA
 #include <display/media/mmm_color_fmt.h>
 #include <display/drm/sde_drm.h>
+#endif
+
 #include <drm/drm_fourcc.h>
 
 #include <sys/mman.h>
@@ -76,10 +79,12 @@ namespace gralloc {
 static inline unsigned int MMM_COLOR_FMT_RGB_STRIDE_IN_PIXELS(unsigned int color_fmt,
                                                               unsigned int width) {
   unsigned int stride = 0, bpp = 4;
+#ifndef QMAA
   if (!(color_fmt & (MMM_COLOR_FMT_RGBA8888 | MMM_COLOR_FMT_RGBA8888_UBWC)) || !width) {
     return stride;
   }
   stride = MMM_COLOR_FMT_RGB_STRIDE(color_fmt, width);
+#endif
   return (stride / bpp);
 }
 
@@ -492,9 +497,11 @@ unsigned int GetSize(const BufferInfo &info, unsigned int alignedw, unsigned int
         break;
       case HAL_PIXEL_FORMAT_YCbCr_420_P010:
       case HAL_PIXEL_FORMAT_YCbCr_420_P010_VENUS:
+#ifndef QMAA
         mmm_color_format =
             (usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_P010_512 : MMM_COLOR_FMT_P010;
         size = MMM_COLOR_FMT_BUFFER_SIZE(mmm_color_format, width, height);
+#endif
         break;
       case static_cast<int>(PixelFormat::YCBCR_422_SP):
       case HAL_PIXEL_FORMAT_YCrCb_422_SP:
@@ -509,13 +516,17 @@ unsigned int GetSize(const BufferInfo &info, unsigned int alignedw, unsigned int
         break;
       case HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
       case HAL_PIXEL_FORMAT_NV12_ENCODEABLE:
+#ifndef QMAA
         mmm_color_format =
             (usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_NV12_512 : MMM_COLOR_FMT_NV12;
         size = MMM_COLOR_FMT_BUFFER_SIZE(mmm_color_format, width, height);
+#endif
         break;
       case HAL_PIXEL_FORMAT_YCrCb_420_SP_VENUS:
       case HAL_PIXEL_FORMAT_NV21_ENCODEABLE:
+#ifndef QMAA
         size = MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_NV21, width, height);
+#endif
         break;
       case static_cast<int>(PixelFormat::BLOB):
         if (height != 1) {
@@ -525,7 +536,9 @@ unsigned int GetSize(const BufferInfo &info, unsigned int alignedw, unsigned int
         size = (unsigned int)width;
         break;
       case HAL_PIXEL_FORMAT_NV12_HEIF:
+#ifndef QMAA
         size = MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_NV12_512, width, height);
+#endif
         break;
       case HAL_PIXEL_FORMAT_NV21_ZSL:
         size = ALIGN((alignedw * alignedh) + (alignedw * alignedh) / 2, SIZE_4K);
@@ -576,6 +589,7 @@ int GetBufferSizeAndDimensions(const BufferInfo &info, unsigned int *size, unsig
 
 void GetYuvUbwcSPPlaneInfo(uint32_t width, uint32_t height, int color_format,
                            PlaneLayoutInfo *plane_info) {
+#ifndef QMAA
   // UBWC buffer has these 4 planes in the following sequence:
   // Y_Plane, UV_Plane, Y_Meta_Plane, UV_Meta_Plane
   unsigned int y_meta_stride = 0, y_meta_height = 0, y_meta_size = 0;
@@ -633,6 +647,7 @@ void GetYuvUbwcSPPlaneInfo(uint32_t width, uint32_t height, int color_format,
   plane_info[3].stride_bytes = static_cast<int32_t>(c_meta_stride);
   plane_info[3].scanlines = static_cast<int32_t>(c_meta_height);
   plane_info[3].size = static_cast<uint32_t>(c_meta_size);
+#endif
 }
 
 // This API gets information about 8 planes (Y_Plane, UV_Plane, Y_Meta_Plane, UV_Meta_Plane,
@@ -647,9 +662,10 @@ void GetYuvUbwcInterlacedSPPlaneInfo(uint32_t width, uint32_t height,
   // Plane info to be filled for each field separately.
   height = (height + 1) >> 1;
 
+#ifndef QMAA
   GetYuvUbwcSPPlaneInfo(width, height, MMM_COLOR_FMT_NV12_UBWC, &plane_info[0]);
-
   GetYuvUbwcSPPlaneInfo(width, height, MMM_COLOR_FMT_NV12_UBWC, &plane_info[4]);
+#endif
 }
 
 // This API gets information about 2 planes (Y_Plane & UV_Plane).
@@ -685,15 +701,19 @@ void GetYuvSPPlaneInfo(const BufferInfo &info, int format, uint32_t width, uint3
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
     case HAL_PIXEL_FORMAT_NV12_ENCODEABLE:
+#ifndef QMAA
       mmm_color_format =
           (info.usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_NV12_512 : MMM_COLOR_FMT_NV12;
       c_height = MMM_COLOR_FMT_UV_SCANLINES(mmm_color_format, height);
       y_height = MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, height);
+#endif
       y_size = y_stride * y_height;
       c_size = c_stride * c_height;
       break;
     case HAL_PIXEL_FORMAT_NV12_HEIF:
+#ifndef QMAA
       c_height = MMM_COLOR_FMT_UV_SCANLINES(MMM_COLOR_FMT_NV12_512, height);
+#endif
       c_size = c_stride * c_height;
       break;
     case HAL_PIXEL_FORMAT_YCrCb_420_SP_ADRENO:
@@ -701,7 +721,9 @@ void GetYuvSPPlaneInfo(const BufferInfo &info, int format, uint32_t width, uint3
       c_size = ALIGN(2 * ALIGN(unaligned_width / 2, 32) * ALIGN(unaligned_height / 2, 32), 4096);
       break;
     case HAL_PIXEL_FORMAT_YCrCb_420_SP_VENUS:
+#ifndef QMAA
       c_height = MMM_COLOR_FMT_UV_SCANLINES(MMM_COLOR_FMT_NV21, height);
+#endif
       c_size = c_stride * c_height;
       break;
     case HAL_PIXEL_FORMAT_NV21_ZSL:
@@ -934,18 +956,24 @@ void GetYuvUBwcWidthAndHeight(int width, int height, int format, unsigned int *a
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_2_BATCH:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_4_BATCH:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_8_BATCH:
+#ifndef QMAA
       *aligned_w = MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_NV12_UBWC, width);
       *aligned_h = MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_NV12_UBWC, height);
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_TP10_UBWC:
+#ifndef QMAA
       // The macro returns the stride which is 4/3 times the width, hence * 3/4
       *aligned_w = (MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_NV12_BPP10_UBWC, width) * 3) / 4;
       *aligned_h = MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_NV12_BPP10_UBWC, height);
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_UBWC:
+#ifndef QMAA
       // The macro returns the stride which is 2 times the width, hence / 2
       *aligned_w = (MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_P010_UBWC, width) / 2);
       *aligned_h = MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_P010_UBWC, height);
+#endif
       break;
     default:
       ALOGE("%s: Unsupported pixel format: 0x%x", __FUNCTION__, format);
@@ -1018,20 +1046,28 @@ unsigned int GetUBwcSize(int width, int height, int format, unsigned int aligned
     case HAL_PIXEL_FORMAT_NV12_ENCODEABLE:
     case HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
     case HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS_UBWC:
+#ifndef QMAA
       size = MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_NV12_UBWC, width, height);
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_TP10_UBWC:
+#ifndef QMAA
       size = MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_NV12_BPP10_UBWC, width, height);
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_UBWC:
+#ifndef QMAA
       size = MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_P010_UBWC, width, height);
+#endif
       break;
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_2_BATCH:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_4_BATCH:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_8_BATCH:
+#ifndef QMAA
       size =
           GetBatchSize(format) * MMM_COLOR_FMT_BUFFER_SIZE(MMM_COLOR_FMT_NV12_UBWC, width, height);
+#endif
       break;
     default:
       ALOGE("%s: Unsupported pixel format: 0x%x", __FUNCTION__, format);
@@ -1240,13 +1276,14 @@ int GetAlignedWidthAndHeight(const BufferInfo &info, unsigned int *alignedw,
     if (((usage & BufferUsage::VIDEO_ENCODER) || (usage & BufferUsage::VIDEO_DECODER) ||
         (usage & BufferUsage::COMPOSER_OVERLAY)) &&
         (format == static_cast<int>(PixelFormat::RGBA_8888))) {
+#ifndef QMAA
       int mmm_format = MMM_COLOR_FMT_RGBA8888;
       if (ubwc_enabled) {
         mmm_format = MMM_COLOR_FMT_RGBA8888_UBWC;
       }
       aligned_w = MMM_COLOR_FMT_RGB_STRIDE_IN_PIXELS(mmm_format, *alignedw);
       aligned_h = MMM_COLOR_FMT_RGB_SCANLINES(mmm_format, *alignedh);
-
+#endif
       *alignedw = aligned_w;
       *alignedh = aligned_h;
     }
@@ -1301,8 +1338,10 @@ int GetAlignedWidthAndHeight(const BufferInfo &info, unsigned int *alignedw,
       * Change made to unblock the software EIS feature from camera
       * Currently using same alignment as camera doing
       */
+#ifndef QMAA
       aligned_w = INT(MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_NV21, width));
       aligned_h = INT(MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_NV21, height));
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_SP:
       if (usage & ONLY_GPU_USAGE_MASK) {
@@ -1357,27 +1396,35 @@ int GetAlignedWidthAndHeight(const BufferInfo &info, unsigned int *alignedw,
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_P010:
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_VENUS:
+#ifndef QMAA
       mmm_color_format =
           (usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_P010_512 : MMM_COLOR_FMT_P010;
       aligned_w = INT(MMM_COLOR_FMT_Y_STRIDE(mmm_color_format, width) / 2);
       aligned_h = INT(MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, height));
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
     case HAL_PIXEL_FORMAT_NV12_ENCODEABLE:
+#ifndef QMAA
       mmm_color_format =
           (usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_NV12_512 : MMM_COLOR_FMT_NV12;
       aligned_w = INT(MMM_COLOR_FMT_Y_STRIDE(mmm_color_format, width));
       aligned_h = INT(MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, height));
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCrCb_420_SP_VENUS:
+#ifndef QMAA
       aligned_w = INT(MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_NV21, width));
       aligned_h = INT(MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_NV21, height));
+#endif
       break;
     case static_cast<int>(PixelFormat::BLOB):
       break;
     case HAL_PIXEL_FORMAT_NV12_HEIF:
+#ifndef QMAA
       aligned_w = INT(MMM_COLOR_FMT_Y_STRIDE(MMM_COLOR_FMT_NV12_512, width));
       aligned_h = INT(MMM_COLOR_FMT_Y_SCANLINES(MMM_COLOR_FMT_NV12_512, height));
+#endif
       break;
     case HAL_PIXEL_FORMAT_NV21_ZSL:
       aligned_w = ALIGN(width, 64);
@@ -1716,7 +1763,9 @@ int GetYUVPlaneInfo(const BufferInfo &info, int32_t format, int32_t width, int32
         plane_info[6].step = plane_info[7].step = 0;
       } else {
         *plane_count = 4;
+#ifndef QMAA
         GetYuvUbwcSPPlaneInfo(width, height, MMM_COLOR_FMT_NV12_UBWC, plane_info);
+#endif
         plane_info[0].h_subsampling = 0;
         plane_info[0].v_subsampling = 0;
         plane_info[0].step = 1;
@@ -1731,7 +1780,9 @@ int GetYUVPlaneInfo(const BufferInfo &info, int32_t format, int32_t width, int32
 
     case HAL_PIXEL_FORMAT_YCbCr_420_TP10_UBWC:
       *plane_count = 4;
+#ifndef QMAA
       GetYuvUbwcSPPlaneInfo(width, height, MMM_COLOR_FMT_NV12_BPP10_UBWC, plane_info);
+#endif
       GetYuvSubSamplingFactor(format, &h_subsampling, &v_subsampling);
       plane_info[0].h_subsampling = 0;
       plane_info[0].v_subsampling = 0;
@@ -1746,7 +1797,9 @@ int GetYUVPlaneInfo(const BufferInfo &info, int32_t format, int32_t width, int32
 
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_UBWC:
       *plane_count = 4;
+#ifndef QMAA
       GetYuvUbwcSPPlaneInfo(width, height, MMM_COLOR_FMT_P010_UBWC, plane_info);
+#endif
       GetYuvSubSamplingFactor(format, &h_subsampling, &v_subsampling);
       plane_info[0].h_subsampling = 0;
       plane_info[0].v_subsampling = 0;
@@ -1762,12 +1815,19 @@ int GetYUVPlaneInfo(const BufferInfo &info, int32_t format, int32_t width, int32
     case HAL_PIXEL_FORMAT_YCbCr_420_P010:
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_VENUS:
       *plane_count = 2;
+#ifndef QMAA
       mmm_color_format =
           (info.usage & GRALLOC_USAGE_PRIVATE_HEIF) ? MMM_COLOR_FMT_P010_512 : MMM_COLOR_FMT_P010;
       y_stride = MMM_COLOR_FMT_Y_STRIDE(mmm_color_format, width);
       c_stride = MMM_COLOR_FMT_UV_STRIDE(mmm_color_format, width);
       y_height = MMM_COLOR_FMT_Y_SCANLINES(mmm_color_format, height);
       c_height = MMM_COLOR_FMT_UV_SCANLINES(mmm_color_format, INT(height));
+#else
+      y_stride = width;
+      y_height = height;
+      c_stride = width;
+      c_height = height;
+#endif
       y_size = y_stride * y_height;
       yOffset = 0;
       cOffset = y_size;
@@ -2097,11 +2157,13 @@ void GetDRMFormat(uint32_t format, uint32_t flags, uint32_t *drm_format,
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_4_BATCH:
     case HAL_PIXEL_FORMAT_NV12_UBWC_FLEX_8_BATCH:
       *drm_format = DRM_FORMAT_NV12;
+#ifndef QMAA
       if (compressed) {
         *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED;
       } else {
         *drm_format_modifier = DRM_FORMAT_MOD_QCOM_TILE;
       }
+#endif
       break;
     case static_cast<uint32_t>(PixelFormat::YCRCB_420_SP):
       *drm_format = DRM_FORMAT_NV21;
@@ -2112,18 +2174,23 @@ void GetDRMFormat(uint32_t format, uint32_t flags, uint32_t *drm_format,
     case HAL_PIXEL_FORMAT_YCbCr_420_P010:
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_VENUS:
       *drm_format = DRM_FORMAT_NV12;
+#ifndef QMAA
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_DX;
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_P010_UBWC:
       *drm_format = DRM_FORMAT_NV12;
+#ifndef QMAA
       if (compressed) {
         *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX;
       } else {
         *drm_format_modifier = DRM_FORMAT_MOD_QCOM_TILE | DRM_FORMAT_MOD_QCOM_DX;
       }
+#endif
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_TP10_UBWC:
       *drm_format = DRM_FORMAT_NV12;
+#ifndef QMAA
       if (compressed) {
         *drm_format_modifier =
             DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_TIGHT;
@@ -2131,6 +2198,7 @@ void GetDRMFormat(uint32_t format, uint32_t flags, uint32_t *drm_format,
         *drm_format_modifier =
             DRM_FORMAT_MOD_QCOM_TILE | DRM_FORMAT_MOD_QCOM_DX | DRM_FORMAT_MOD_QCOM_TIGHT;
       }
+#endif
       break;
     case static_cast<uint32_t>(PixelFormat::YCBCR_422_SP):
       *drm_format = DRM_FORMAT_NV16;

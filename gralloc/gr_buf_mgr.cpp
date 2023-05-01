@@ -209,8 +209,10 @@ static Error getYUVPlaneInfo(const private_handle_t *hnd, struct android_ycbcr y
       unsigned int alignment = 4096;
       uint64_t field_base;
       height = (height + 1) >> 1;
+      #ifndef QMAA
       uv_stride = MMM_COLOR_FMT_UV_STRIDE(MMM_COLOR_FMT_NV12_UBWC, INT(width));
       uv_height = MMM_COLOR_FMT_UV_SCANLINES(MMM_COLOR_FMT_NV12_UBWC, INT(height));
+      #endif
       uv_size = ALIGN((uv_stride * uv_height), alignment);
       field_base = hnd->base + plane_info[1].offset + uv_size;
       memset(ycbcr[1].reserved, 0, sizeof(ycbcr[1].reserved));
