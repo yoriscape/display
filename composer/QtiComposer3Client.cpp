@@ -6,6 +6,8 @@
 #include "QtiComposer3Client.h"
 #include "AidlComposerClient.h"
 #include "android/binder_status.h"
+#include "android/binder_auto_utils.h"
+#include <android/binder_ibinder_platform.h>
 
 using ::aidl::android::hardware::common::NativeHandle;
 using sdm::Locker;
@@ -52,6 +54,12 @@ ScopedAStatus QtiComposer3Client::qtiTryDrawMethod(int64_t in_display,
   auto error = hwc_session_->TryDrawMethod(in_display, in_drawMethod);
 
   return TO_BINDER_STATUS(INT32(error));
+}
+
+SpAIBinder QtiComposer3Client::createBinder() {
+  auto binder = BnQtiComposer3Client::createBinder();
+  AIBinder_setInheritRt(binder.get(), true);
+  return binder;
 }
 
 }  // namespace composer3
