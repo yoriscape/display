@@ -348,6 +348,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void IdleTimeout() {}
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
+  DisplayError DisableDestinationScalar();
 
   DisplayMutex disp_mutex_;
   std::thread commit_thread_;

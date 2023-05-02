@@ -3876,7 +3876,7 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
     // Disable Destination Scalar for TUI Use Case
     if (hw_panel_info_.mode != kModeCommand) {
       if ((mixer_width != display_width) || (mixer_height != display_height)) {
-        err = ReconfigureMixer(display_width, display_height);
+        err = DisableDestinationScalar();
         if (err != kErrorNone) {
           return err;
         }
@@ -4434,6 +4434,19 @@ void DisplayBase::ResetDispLayerStack() {
     DLOGW("Stack did not clear in PostCommit. Clear now.");
     *disp_layer_stack_ = DispLayerStack();
   }
+}
+
+DisplayError DisplayBase::DisableDestinationScalar() {
+  DisplayError err = ReconfigureMixer(display_attributes_.x_pixels, display_attributes_.y_pixels);
+  if (err != kErrorNone) {
+    DLOGW("Could not reconfigure mixer, err=%d", err);
+    return err;
+  }
+  DestScaleInfoMap dest_scale_info_map = {};
+  comp_manager_->GetDSConfig(display_comp_ctx_, &dest_scale_info_map);
+  hw_intf_->SetDestScalarData(dest_scale_info_map);
+
+  return kErrorNone;
 }
 
 }  // namespace sdm
