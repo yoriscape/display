@@ -2157,19 +2157,68 @@ android::status_t HWCSession::SetMaxMixerStages(const android::Parcel *input_par
   return status;
 }
 
+int32_t HWCSession::ValidateFrameDumpConfig(uint32_t frame_dump_count, uint32_t bit_mask_disp_type,
+                                            uint32_t bit_mask_layer_type) {
+  std::bitset<32> bit_mask_display_type = bit_mask_disp_type;
+
+  //Checking for frame count, display type and layer type bitmask as 0, which is unsupported input.
+  if (!frame_dump_count || bit_mask_display_type.none() || !bit_mask_layer_type) {
+    DLOGW("Invalid request with unsupported input(%s=0) for frame dump!",
+          (!frame_dump_count)              ? "frame_dump_count"
+          : (bit_mask_display_type.none()) ? "bit_mask_display_type"
+                                           : "bit_mask_layer_type");
+    return -EINVAL;
+  }
+
+  bool output_buffer_dump = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
+  if (output_buffer_dump) {
+    // Get running virtual display count which are using H/W WB block.
+    uint32_t virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
+    uint32_t running_vds = ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) ? 1 : 0;
+    virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL_2);
+    running_vds += ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) ? 1 : 0;
+
+    // Get requested virtual display count.
+    uint32_t requested_vds = (bit_mask_display_type.test(qdutils::DISPLAY_VIRTUAL)) ? 1 : 0;
+    requested_vds += (bit_mask_display_type.test(qdutils::DISPLAY_VIRTUAL_2)) ? 1 : 0;
+
+    // Get requested physical display count.
+    uint32_t requested_pds = bit_mask_display_type.count() - requested_vds;
+
+    // Get available writeback block count.
+    uint32_t available_wbs = virtual_display_list_.size() - running_vds;
+
+    // if no any virtual display is running, but requested only virtual display output dump, then
+    // can't process it.
+    if (!running_vds && requested_vds && !requested_pds) {
+      DLOGW("No any virtual display is running for virtual output frame dump.");
+      return -EINVAL;
+    }
+
+    // if any virtual displays is running and all WBs are occupied, but requested only physical
+    // display output dump, then can't process it.
+    if (requested_pds && !available_wbs && !requested_vds) {
+      DLOGW("No any writeback block is available for CWB output frame dump.");
+      return -EINVAL;
+    }
+
+    // Get processable count of physical display output buffer request.
+    return std::min(requested_pds, available_wbs);
+  }
+
+  return 0;
+}
+
 android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_parcel) {
   uint32_t frame_dump_count = UINT32(input_parcel->readInt32());
   std::bitset<32> bit_mask_display_type = UINT32(input_parcel->readInt32());
   uint32_t bit_mask_layer_type = UINT32(input_parcel->readInt32());
 
-  // Output buffer dump is not supported, if Virtual display is present.
-  bool output_buffer_dump = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
-  if (output_buffer_dump) {
-    int virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
-    if ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) {
-      DLOGW("Output buffer dump is not supported with Virtual display!");
-      return -EINVAL;
-    }
+  int32_t processable_cwb_requests = ValidateFrameDumpConfig(
+      frame_dump_count, bit_mask_display_type.to_ulong(), bit_mask_layer_type);
+  // if validation error occurs, just discard the frame dump request.
+  if (processable_cwb_requests < 0) {
+    return processable_cwb_requests;
   }
 
   // Read optional user preferences: output_format, tap_point, pu_in_cwb_roi, cwb_roi.
@@ -2187,35 +2236,37 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     return -EINVAL;
   }
 
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    // Option to dump Layer Mixer output (0) or DSPP output (1) or Demura  output (2)
-    cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
-    // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
-    cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
-    // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
-    // corresponding bit of CWB flag.
-    cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
-  }
+  if (processable_cwb_requests > 0) {
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      // Option to dump Layer Mixer output (0) or DSPP output (1) or Demura  output (2)
+      cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+      // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
+      cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+      // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
+      // corresponding bit of CWB flag.
+      cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
+    }
 
-  LayerRect &cwb_roi = cwb_config.cwb_roi;
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.left = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.top = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.right = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+    LayerRect &cwb_roi = cwb_config.cwb_roi;
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.left = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.top = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.right = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+    }
   }
 
   android::status_t status = 0;
-
+  bool input_buffer_dump = bit_mask_layer_type & (1 << INPUT_LAYER_DUMP);
   for (uint32_t i = 0; i < bit_mask_display_type.size(); i++) {
     if (!bit_mask_display_type[i]) {
       continue;
@@ -2224,6 +2275,15 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     if (disp_idx == -1) {
       continue;
     }
+
+    if (i != UINT32(qdutils::DISPLAY_VIRTUAL) && i != UINT32(qdutils::DISPLAY_VIRTUAL_2)) {
+      if (processable_cwb_requests <= 0 && !input_buffer_dump) {
+        continue;
+      } else if (processable_cwb_requests > 0) {
+        processable_cwb_requests--;
+      }
+    }
+
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
     auto &hwc_display = hwc_display_[disp_idx];
     if (!hwc_display) {
