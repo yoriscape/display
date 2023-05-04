@@ -173,6 +173,8 @@
 #define ANTI_AGING_MEMORY_SIZE               DISPLAY_PROP("demura_memory_size")
 #define ANTI_AGING_RECALIB_TIMER_DIVIDER     DISPLAY_PROP("demura_recalib_timer_divider")
 #define ANTI_AGING_ENABLE_LOGGING            DISPLAY_PROP("antiaging_enable_logging")
+#define ANTI_AGING_CWB_DOWNSACLE_X           DISPLAY_PROP("demura_cwb_downscale_x")
+#define ANTI_AGING_CWB_DOWNSACLE_Y           DISPLAY_PROP("demura_cwb_downscale_y")
 
 // PERF hint properties
 #define ENABLE_PERF_HINT_LARGE_COMP_CYCLE    DISPLAY_PROP("enable_perf_hint_large_comp_cycle")

@@ -1001,6 +1001,7 @@ struct HWLayersInfo {
   bool lower_fps = false;  // This field hints to lower the fps in case of idle fallback
   bool iwe_enabled = false;
   HWDNSCInfo dnsc_cfg = {};
+  HWDNSCInfo demura_dnsc_cfg = {};
   SelfRefreshState self_refresh_state = kSelfRefreshNone;
   uint64_t expected_present_time = 0;
 };
