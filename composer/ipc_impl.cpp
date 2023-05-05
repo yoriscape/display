@@ -333,12 +333,14 @@ int IPCImpl::ProcessExportBuffers(const GenericPayload &in, GenericPayload *out)
 }
 
 int IPCImpl::ProcessOps(IPCOps op, const GenericPayload &in, GenericPayload *out) {
-  if (!out) {
-    return -EINVAL;
-  }
   int ret = 0;
+
   switch (op) {
     case kIpcOpsFilePath: {
+      if (!out) {
+        return -EINVAL;
+      }
+
       std::shared_ptr<IDemuraFileFinder> demuraAidl = nullptr;
       const std::string instance = std::string() + IDemuraFileFinder::descriptor + "/default";
       if (!AServiceManager_isDeclared(instance.c_str())) {

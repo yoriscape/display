@@ -587,13 +587,16 @@ void CoreIPCVmCallbackImpl::Deinit() {
   int ret = in_unreg.CreatePayload<int>(cb_hnd_in);
   if (ret) {
     DLOGE("failed to create the payload for in_unreg. Error:%d", ret);
-    return;
+    goto end;
   }
+
   *cb_hnd_in = cb_hnd_out_;
   if ((ret = ipc_intf_->ProcessOps(kIpcOpsUnRegisterVmCallback, in_unreg, nullptr))) {
     DLOGE("Failed to unregister vm callback, error = %d", ret);
-    return;
+    goto end;
   }
+
+end:
   server_ready_ = false;
 
   if (server_thread_.joinable()) {
