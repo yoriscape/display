@@ -283,6 +283,7 @@ class HWDeviceDRM : public HWInterface {
   DisplayError GetPanelBlMaxLvl(uint32_t *bl_max);
   DisplayError SetPPConfig(void *payload, size_t size);
   DisplayError GetQsyncFps(uint32_t *qsync_fps) { return kErrorNotSupported; }
+  void SetDestScalarData(const DestScaleInfoMap dest_scale_info_map) { return; };
 
   class Registry {
    public:
