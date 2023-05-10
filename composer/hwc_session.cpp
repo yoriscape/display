@@ -3142,6 +3142,11 @@ int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
       case -ENODEV:
         // Errors like device removal or deferral for which we want to try another hotplug handling.
         pending_hotplug_event_ = kHotPlugEvent;
+
+        if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
+          callbacks_.Refresh(active_builtin_disp_id);
+        }
+
         status = 0;
         break;
       default:
