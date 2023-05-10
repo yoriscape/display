@@ -623,6 +623,8 @@ class HWCSession : public HWCUEvent,
   int WaitForVmRelease(Display display, int timeout_ms);
   void GetVirtualDisplayList();
   bool IsHWDisplayConnected(Display client_id);
+  int32_t ValidateFrameDumpConfig(uint32_t frame_dump_count, uint32_t bit_mask_disp_type,
+                                  uint32_t bit_mask_layer_type);
 
   CoreInterface *core_intf_ = nullptr;
   HWCDisplay *hwc_display_[HWCCallbacks::kNumDisplays] = {nullptr};

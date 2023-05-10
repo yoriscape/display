@@ -2111,7 +2111,11 @@ void HWCDisplay::DumpOutputBuffer(const BufferInfo &buffer_info, void *base,
       fclose(fp);
     }
     // Need to clear buffer after dumping of current frame to provide empty buffer for next frame.
-    memset(base, 0, buffer_info.alloc_buffer_info.size);
+    // But avoid this in case of virtual display frame dump, else it would provide empty buffer
+    // to virtual display client, because it uses client buffer for dumping output.
+    if (type_ != kVirtual) {
+      memset(base, 0, buffer_info.alloc_buffer_info.size);
+    }
     DLOGI("Frame Dump of %s is %s", dump_file_name, result ? "Successful" : "Failed");
   }
 }
