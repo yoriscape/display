@@ -349,6 +349,7 @@ class HWCSession : public HWCUEvent,
                               uint32_t *out_num_requests, bool *needs_commit);
   HWC3::Error TryDrawMethod(Display display, DrawMethod drawMethod);
   HWC3::Error SetExpectedPresentTime(Display display, uint64_t expectedPresentTime);
+  HWC3::Error GetOverlaySupport(OverlayProperties *supported_props);
 
   static Locker locker_[HWCCallbacks::kNumDisplays];
   static Locker power_state_[HWCCallbacks::kNumDisplays];

@@ -433,7 +433,8 @@ ScopedAStatus AidlComposerClient::getMaxVirtualDisplayCount(int32_t *aidl_return
 }
 
 ScopedAStatus AidlComposerClient::getOverlaySupport(OverlayProperties *aidl_return) {
-  return TO_BINDER_STATUS(INT32(Error::Unsupported));
+  auto error = hwc_session_->GetOverlaySupport(aidl_return);
+  return TO_BINDER_STATUS(INT32(error));
 }
 
 ScopedAStatus AidlComposerClient::getHdrConversionCapabilities(
