@@ -609,7 +609,7 @@ HWC3::Error HWCSession::CreateVirtualDisplay(uint32_t width, uint32_t height, in
   if (status == HWC3::Error::None) {
     DLOGI("Created virtual display id:%" PRIu64 ", res: %dx%d", *out_display_id, width, height);
   } else {
-    DLOGE("Failed to create virtual display: %s", to_string(status).c_str());
+    DLOGW("Failed to create virtual display: %s", to_string(status).c_str());
   }
   return status;
 }
@@ -1425,13 +1425,13 @@ HWC3::Error HWCSession::CreateVirtualDisplayObj(uint32_t width, uint32_t height,
       hwc_display_[active_builtin_disp_id]->GetActiveSecureSession(&secure_sessions);
     }
     if (secure_sessions.any()) {
-      DLOGE("Secure session is active, cannot create virtual display.");
+      DLOGW("Secure session is active, cannot create virtual display.");
       return HWC3::Error::Unsupported;
     } else if (IsVirtualDisplayConnected()) {
-      DLOGE("Previous virtual session is active, cannot create virtual display.");
+      DLOGW("Previous virtual session is active, cannot create virtual display.");
       return HWC3::Error::Unsupported;
     } else if (IsPluggableDisplayConnected()) {
-      DLOGE("External session is active, cannot create virtual display.");
+      DLOGW("External session is active, cannot create virtual display.");
       return HWC3::Error::Unsupported;
     }
   }
