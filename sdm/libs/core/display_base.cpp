@@ -4266,6 +4266,8 @@ DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
   info->display_width = display_attributes_.x_pixels;
   info->display_height = display_attributes_.y_pixels;
   info->panel_name = std::string(hw_panel_info_.panel_name);
+  info->fps = display_attributes_.fps;
+
   return kErrorNone;
 }
 
