@@ -68,7 +68,6 @@ void __llvm_profile_try_write_file(void);
 
 namespace sdm {
 
-static HWCUEvent g_hwc_uevent_;
 Locker HWCSession::locker_[HWCCallbacks::kNumDisplays];
 bool HWCSession::pending_power_mode_[HWCCallbacks::kNumDisplays];
 Locker HWCSession::power_state_[HWCCallbacks::kNumDisplays];
@@ -138,26 +137,52 @@ int GetEventValue(const char *uevent_data, int length, const char *event_info) {
   return -1;
 }
 
-void HWCUEvent::UEventThreadTop(HWCUEvent *hwc_uevent) {
+void HWCSession::ParseUEvent(char *uevent_data, int length) {
+  static constexpr uint32_t uevent_max_count = 3;
+  const char *str_status = GetTokenValue(uevent_data, length, "status=");
+  const char *str_sstmst = GetTokenValue(uevent_data, length, "HOTPLUG=");
+  const char *str_mst = GetTokenValue(uevent_data, length, "MST_HOTPLUG=");
+
+  if (!str_status && !str_mst && !str_sstmst) {
+    return;
+  }
+
+  if (!strcasestr(uevent_data, HWC_UEVENT_DRM_EXT_HOTPLUG)) {
+    return;
+  }
+
+  hpd_bpp_ = GetEventValue(uevent_data, length, "bpp=");
+  hpd_pattern_ = GetEventValue(uevent_data, length, "pattern=");
+
+  DLOGI("UEvent = %s, status = %s, HOTPLUG = %s (SST/MST)%s%s, bpp = %d, pattern = %d", uevent_data,
+        str_status ? str_status : "NULL", str_sstmst ? str_sstmst : "NULL",
+        str_mst ? ", MST_HOTPLUG = " : "", str_mst ? str_mst : "", hpd_bpp_, hpd_pattern_);
+
+  if (str_status) {
+    hpd_connected_ = strncmp(str_status, "connected", strlen("connected")) == 0;
+    DLOGI("Connected = %d", hpd_connected_);
+  }
+
+  uevent_counter_++;
+  std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
+  if (uevent_counter_.load() > uevent_max_count) {
+    uevent_counter_.store(uevent_max_count);
+  }
+
+  hpd_cv_.notify_one();
+}
+
+void HWCSession::HpdThreadTop() {
+  DLOGI("Starting!");
   const char *uevent_thread_name = "HWC_UeventThreadTop";
-  const uint32_t uevent_max_count = 3;
 
   prctl(PR_SET_NAME, uevent_thread_name, 0, 0, 0);
   setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
   int status = uevent_init();
   if (!status) {
-    std::unique_lock<std::mutex> caller_lock(hwc_uevent->mutex_);
-    hwc_uevent->caller_cv_.notify_one();
     DLOGE("Failed to init uevent with err %d", status);
     return;
-  }
-
-  {
-    // Signal caller thread that worker thread is ready to listen to events.
-    std::unique_lock<std::mutex> caller_lock(hwc_uevent->mutex_);
-    hwc_uevent->init_done_ = true;
-    hwc_uevent->caller_cv_.notify_one();
   }
 
   while (1) {
@@ -166,97 +191,35 @@ void HWCUEvent::UEventThreadTop(HWCUEvent *hwc_uevent) {
     // keep last 2 zeros to ensure double 0 termination
     int length = uevent_next_event(uevent_data, INT32(sizeof(uevent_data)) - 2);
 
-    // MST hotplug will not carry connection status/test pattern etc.
-    // Pluggable display handler will check all connection status' and take action accordingly.
-    const char *str_status = GetTokenValue(uevent_data, length, "status=");
-    const char *str_sstmst = GetTokenValue(uevent_data, length, "HOTPLUG=");
-
-    // Check MST_HOTPLUG for backward compatibility.
-    const char *str_mst = GetTokenValue(uevent_data, length, "MST_HOTPLUG=");
-    if (!str_status && !str_mst && !str_sstmst) {
-      continue;
-    }
-
-    if (!strcasestr(uevent_data, HWC_UEVENT_DRM_EXT_HOTPLUG)) {
-      continue;
-    }
-
-    hwc_uevent->uevent_listener_->hpd_bpp_ = GetEventValue(uevent_data, length, "bpp=");
-    hwc_uevent->uevent_listener_->hpd_pattern_ = GetEventValue(uevent_data, length, "pattern=");
-    DLOGI("UEvent = %s, status = %s, HOTPLUG = %s (SST/MST)%s%s, bpp = %d, pattern = %d",
-          uevent_data, str_status ? str_status : "NULL", str_sstmst ? str_sstmst : "NULL",
-          str_mst ? ", MST_HOTPLUG = " : "", str_mst ? str_mst : "",
-          hwc_uevent->uevent_listener_->hpd_bpp_, hwc_uevent->uevent_listener_->hpd_pattern_);
-
-    // scope of lock to this block only, so that caller is free to set event handler to nullptr;
-    {
-      std::lock_guard<std::mutex> guard(hwc_uevent->mutex_);
-
-      if (hwc_uevent->uevent_listener_) {
-        if (str_status) {
-          hwc_uevent->uevent_listener_->connected =
-              (strncmp(str_status, "connected", strlen("connected")) == 0);
-          DLOGI("Connected = %d", hwc_uevent->uevent_listener_->connected);
-        }
-
-        hwc_uevent->uevent_listener_->uevent_counter_++;
-        std::unique_lock<std::mutex> evt_lock(hwc_uevent->evt_mutex_);
-        if (hwc_uevent->uevent_listener_->uevent_counter_.load() > uevent_max_count) {
-          hwc_uevent->uevent_listener_->uevent_counter_.store(uevent_max_count);
-        }
-        hwc_uevent->evt_cv_.notify_one();
-      } else {
-        DLOGW("UEvent dropped. No uevent listener.");
-      }
-    }
+    ParseUEvent(uevent_data, length);
   }
+  DLOGI("Ending!");
 }
 
-void HWCUEvent::UEventThreadBottom(HWCUEvent *hwc_uevent) {
+void HWCSession::HpdThreadBottom() {
+  DLOGI("Starting!");
   const char *uevent_thread_name = "HWC_UeventThreadBottom";
 
   prctl(PR_SET_NAME, uevent_thread_name, 0, 0, 0);
   setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
-  std::unique_lock<std::mutex> evt_lock(hwc_uevent->evt_mutex_);
+  std::unique_lock<std::mutex> evt_lock(hpd_mutex_);
   while (1) {
-    hwc_uevent->evt_cv_.wait(evt_lock);
+    hpd_cv_.wait(evt_lock);
 
-    if (!hwc_uevent->uevent_listener_) {
+    if (hpd_thread_should_terminate_) {
       break;
     }
 
-    while (hwc_uevent->uevent_listener_->uevent_counter_.load() > 0) {
+    while (uevent_counter_.load() > 0) {
       evt_lock.unlock();
-      hwc_uevent->uevent_listener_->UEventHandler(hwc_uevent->uevent_listener_->connected);
+      UEventHandler();
       evt_lock.lock();
-      hwc_uevent->uevent_listener_->uevent_counter_--;
+
+      uevent_counter_--;
     }
   }
-}
-
-void HWCUEvent::Deinit() {
-  if (hot_plug_thread_.joinable()) {
-    evt_cv_.notify_one();
-    hot_plug_thread_.join();
-  }
-}
-
-HWCUEvent::HWCUEvent() {
-  std::unique_lock<std::mutex> caller_lock(mutex_);
-  std::thread thread_top(HWCUEvent::UEventThreadTop, this);
-  thread_top.detach();
-
-  hot_plug_thread_ = std::thread(HWCUEvent::UEventThreadBottom, this);
-
-  caller_cv_.wait(caller_lock);
-}
-
-void HWCUEvent::Register(HWCUEventListener *uevent_listener) {
-  DLOGI("Set uevent listener = %p", uevent_listener);
-
-  std::lock_guard<std::mutex> obj(mutex_);
-  uevent_listener_ = uevent_listener;
+  DLOGI("Ending!");
 }
 
 HWCSession::HWCSession() : cwb_(this) {}
@@ -274,13 +237,6 @@ int HWCSession::Init() {
 
   int status = -EINVAL;
   const char *qservice_name = "display.qservice";
-
-  if (!g_hwc_uevent_.InitDone()) {
-    DLOGE("HWCUEvent initialization is not done!");
-    return status;
-  } else {
-    DLOGI("HWCUEvent initialization confirmed to be completed");
-  }
 
   // Start QService and connect to it.
   DLOGI("Initializing QService");
@@ -317,13 +273,6 @@ int HWCSession::Init() {
                                       &enable_primary_reconfig_req_);
   DLOGI("enable_primary_reconfig_req_: %d", enable_primary_reconfig_req_);
 
-  if (!null_display_mode_) {
-    g_hwc_uevent_.Register(this);
-    DLOGI("Registered HWCSession as the HWCUEvent handler");
-  } else {
-    DLOGI("Did not register HWCSession as the HWCUEvent handler");
-  }
-
   value = 0;  // Default value when property is not present.
   Debug::Get()->GetProperty(ENABLE_ASYNC_POWERMODE, &value);
   async_powermode_ = (value == 1);
@@ -356,13 +305,38 @@ int HWCSession::Init() {
   }
 
   is_composer_up_ = true;
+
   StartServices();
-
   PostInit();
-
   GetVirtualDisplayList();
+  HpdInit();
+
   DLOGI("Initializing HWCSession...done!");
   return 0;
+}
+
+void HWCSession::HpdInit() {
+  if (null_display_mode_) {
+    return;
+  }
+
+  hpd_thread_ = std::thread(&HWCSession::HpdThreadBottom, this);
+
+  // Top thread should be detached as it uses uevent_next_event()
+  // and we can't wake it from main thread.
+  std::thread(&HWCSession::HpdThreadTop, this).detach();
+}
+
+void HWCSession::HpdDeinit() {
+  if (null_display_mode_) {
+    return;
+  }
+
+  if (hpd_thread_.joinable()) {
+    hpd_thread_should_terminate_ = true;
+    hpd_cv_.notify_one();
+    hpd_thread_.join();
+  }
 }
 
 void HWCSession::PostInit() {
@@ -377,8 +351,7 @@ void HWCSession::PostInit() {
 }
 
 int HWCSession::Deinit() {
-  g_hwc_uevent_.Register(nullptr);
-  g_hwc_uevent_.Deinit();
+  HpdDeinit();
 
   // Destroy all connected displays
   DestroyDisplay(&map_info_primary_);
@@ -860,7 +833,7 @@ void HWCSession::PerformQsyncCallback(Display display, bool qsync_enabled, uint3
   // AIDL callback
   if (!callback_clients_.empty()) {
     std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
-    for (auto const & [ id, callback ] : callback_clients_) {
+    for (auto const &[id, callback] : callback_clients_) {
       if (callback) {
         callback->notifyQsyncChange(qsync_enabled, refresh_rate, qsync_refresh_rate);
       }
@@ -1277,13 +1250,13 @@ HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
       is_power_off = (hwc_display_[display]->GetCurrentPowerMode() == PowerMode::OFF);
     }
   }
-      if (secure_session_active_ && is_builtin && is_power_off) {
-        if (GetActiveBuiltinDisplay() != HWCCallbacks::kNumDisplays) {
-          DLOGI("Secure session in progress, defer power state change");
+  if (secure_session_active_ && is_builtin && is_power_off) {
+    if (GetActiveBuiltinDisplay() != HWCCallbacks::kNumDisplays) {
+      DLOGI("Secure session in progress, defer power state change");
       SCOPE_LOCK(locker_[display]);
       if (hwc_display_[display]) {
-          hwc_display_[display]->SetPendingPowerMode(mode);
-          return HWC3::Error::None;
+        hwc_display_[display]->SetPendingPowerMode(mode);
+        return HWC3::Error::None;
       }
     }
   }
@@ -2184,19 +2157,68 @@ android::status_t HWCSession::SetMaxMixerStages(const android::Parcel *input_par
   return status;
 }
 
+int32_t HWCSession::ValidateFrameDumpConfig(uint32_t frame_dump_count, uint32_t bit_mask_disp_type,
+                                            uint32_t bit_mask_layer_type) {
+  std::bitset<32> bit_mask_display_type = bit_mask_disp_type;
+
+  //Checking for frame count, display type and layer type bitmask as 0, which is unsupported input.
+  if (!frame_dump_count || bit_mask_display_type.none() || !bit_mask_layer_type) {
+    DLOGW("Invalid request with unsupported input(%s=0) for frame dump!",
+          (!frame_dump_count)              ? "frame_dump_count"
+          : (bit_mask_display_type.none()) ? "bit_mask_display_type"
+                                           : "bit_mask_layer_type");
+    return -EINVAL;
+  }
+
+  bool output_buffer_dump = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
+  if (output_buffer_dump) {
+    // Get running virtual display count which are using H/W WB block.
+    uint32_t virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
+    uint32_t running_vds = ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) ? 1 : 0;
+    virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL_2);
+    running_vds += ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) ? 1 : 0;
+
+    // Get requested virtual display count.
+    uint32_t requested_vds = (bit_mask_display_type.test(qdutils::DISPLAY_VIRTUAL)) ? 1 : 0;
+    requested_vds += (bit_mask_display_type.test(qdutils::DISPLAY_VIRTUAL_2)) ? 1 : 0;
+
+    // Get requested physical display count.
+    uint32_t requested_pds = bit_mask_display_type.count() - requested_vds;
+
+    // Get available writeback block count.
+    uint32_t available_wbs = virtual_display_list_.size() - running_vds;
+
+    // if no any virtual display is running, but requested only virtual display output dump, then
+    // can't process it.
+    if (!running_vds && requested_vds && !requested_pds) {
+      DLOGW("No any virtual display is running for virtual output frame dump.");
+      return -EINVAL;
+    }
+
+    // if any virtual displays is running and all WBs are occupied, but requested only physical
+    // display output dump, then can't process it.
+    if (requested_pds && !available_wbs && !requested_vds) {
+      DLOGW("No any writeback block is available for CWB output frame dump.");
+      return -EINVAL;
+    }
+
+    // Get processable count of physical display output buffer request.
+    return std::min(requested_pds, available_wbs);
+  }
+
+  return 0;
+}
+
 android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_parcel) {
   uint32_t frame_dump_count = UINT32(input_parcel->readInt32());
   std::bitset<32> bit_mask_display_type = UINT32(input_parcel->readInt32());
   uint32_t bit_mask_layer_type = UINT32(input_parcel->readInt32());
 
-  // Output buffer dump is not supported, if Virtual display is present.
-  bool output_buffer_dump = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
-  if (output_buffer_dump) {
-    int virtual_dpy_index = GetDisplayIndex(qdutils::DISPLAY_VIRTUAL);
-    if ((virtual_dpy_index != -1) && hwc_display_[virtual_dpy_index]) {
-      DLOGW("Output buffer dump is not supported with Virtual display!");
-      return -EINVAL;
-    }
+  int32_t processable_cwb_requests = ValidateFrameDumpConfig(
+      frame_dump_count, bit_mask_display_type.to_ulong(), bit_mask_layer_type);
+  // if validation error occurs, just discard the frame dump request.
+  if (processable_cwb_requests < 0) {
+    return processable_cwb_requests;
   }
 
   // Read optional user preferences: output_format, tap_point, pu_in_cwb_roi, cwb_roi.
@@ -2214,35 +2236,37 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     return -EINVAL;
   }
 
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    // Option to dump Layer Mixer output (0) or DSPP output (1) or Demura  output (2)
-    cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
-    // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
-    cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
-    // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
-    // corresponding bit of CWB flag.
-    cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
-  }
+  if (processable_cwb_requests > 0) {
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      // Option to dump Layer Mixer output (0) or DSPP output (1) or Demura  output (2)
+      cwb_config.tap_point = static_cast<CwbTapPoint>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      std::bitset<32> bit_mask_cwb_flag = UINT32(input_parcel->readInt32());
+      // Option to include PU ROI in CWB ROI, and retrieve it from corresponding bit of CWB flag.
+      cwb_config.pu_as_cwb_roi = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagPuAsCwbROI]);
+      // Option to avoid additional refresh to process pending CWB requests, and retrieve it from
+      // corresponding bit of CWB flag.
+      cwb_config.avoid_refresh = static_cast<bool>(bit_mask_cwb_flag[kCwbFlagAvoidRefresh]);
+    }
 
-  LayerRect &cwb_roi = cwb_config.cwb_roi;
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.left = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.top = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.right = static_cast<float>(input_parcel->readInt32());
-  }
-  if (input_parcel->dataPosition() != input_parcel->dataSize()) {
-    cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+    LayerRect &cwb_roi = cwb_config.cwb_roi;
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.left = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.top = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.right = static_cast<float>(input_parcel->readInt32());
+    }
+    if (input_parcel->dataPosition() != input_parcel->dataSize()) {
+      cwb_roi.bottom = static_cast<float>(input_parcel->readInt32());
+    }
   }
 
   android::status_t status = 0;
-
+  bool input_buffer_dump = bit_mask_layer_type & (1 << INPUT_LAYER_DUMP);
   for (uint32_t i = 0; i < bit_mask_display_type.size(); i++) {
     if (!bit_mask_display_type[i]) {
       continue;
@@ -2251,6 +2275,15 @@ android::status_t HWCSession::SetFrameDumpConfig(const android::Parcel *input_pa
     if (disp_idx == -1) {
       continue;
     }
+
+    if (i != UINT32(qdutils::DISPLAY_VIRTUAL) && i != UINT32(qdutils::DISPLAY_VIRTUAL_2)) {
+      if (processable_cwb_requests <= 0 && !input_buffer_dump) {
+        continue;
+      } else if (processable_cwb_requests > 0) {
+        processable_cwb_requests--;
+      }
+    }
+
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[disp_idx]);
     auto &hwc_display = hwc_display_[disp_idx];
     if (!hwc_display) {
@@ -2777,7 +2810,7 @@ android::status_t HWCSession::SetPanelLuminanceAttributes(const android::Parcel 
   return 0;
 }
 
-void HWCSession::UEventHandler(int connected) {
+void HWCSession::UEventHandler() {
   // Drop hotplug uevents until SurfaceFlinger (the client) is connected. The equivalent of hotplug
   // uevent handling will be done once when SurfaceFlinger connects, at RegisterCallback(). Since
   // HandlePluggableDisplays() reads the latest connection states of all displays, no uevent is
@@ -2796,8 +2829,8 @@ void HWCSession::UEventHandler(int connected) {
   }
 
   // Pass on legacy HDMI hot-plug event
-  if (connected != -1) {
-    qservice_->onHdmiHotplug(connected);
+  if (hpd_connected_ != -1) {
+    qservice_->onHdmiHotplug(hpd_connected_);
   }
 }
 
@@ -3109,6 +3142,11 @@ int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
       case -ENODEV:
         // Errors like device removal or deferral for which we want to try another hotplug handling.
         pending_hotplug_event_ = kHotPlugEvent;
+
+        if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
+          callbacks_.Refresh(active_builtin_disp_id);
+        }
+
         status = 0;
         break;
       default:
@@ -3116,8 +3154,8 @@ int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
         pending_hotplug_event_ = kHotPlugNone;
         DLOGE("All displays could not be connected. Error %d '%s'.", status, strerror(abs(status)));
     }
-    DLOGI("Handling hotplug... %s", (kHotPlugNone == pending_hotplug_event_) ?
-          "Stopped." : "Done. Hotplug events pending.");
+    DLOGI("Handling hotplug... %s",
+          (kHotPlugNone == pending_hotplug_event_) ? "Stopped." : "Done. Hotplug events pending.");
     return status;
   }
 
@@ -3132,14 +3170,7 @@ int HWCSession::HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool d
   std::vector<Display> pending_hotplugs = {};
   Display client_id = 0;
 
-  static constexpr uint32_t min_mixer_count = 2;
-  uint32_t available_mixer_count = 0;
   Display active_builtin = GetActiveBuiltinDisplay();
-
-  if (active_builtin < HWCCallbacks::kNumDisplays) {
-    Locker::ScopeLock lock_a(locker_[active_builtin]);
-    available_mixer_count = hwc_display_[active_builtin]->GetAvailableMixerCount();
-  }
 
   for (auto &iter : *hw_displays_info) {
     auto &info = iter.second;
@@ -3155,11 +3186,6 @@ int HWCSession::HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool d
     if (display_used != map_info_pluggable_.end()) {
       // Display is already used in a slot.
       continue;
-    }
-
-    if (available_mixer_count < min_mixer_count) {
-      DLOGI("mixers not available: available: %d, min: %d", available_mixer_count, min_mixer_count);
-      return -EAGAIN;
     }
 
     // Count active pluggable display slots and slots with no commits.
@@ -3258,9 +3284,9 @@ int HWCSession::HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool d
   // Active builtin display needs revalidation
   Display active_builtin_disp_id = GetActiveBuiltinDisplay();
   if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
-    status = INT32(WaitForResources(delay_hotplug, active_builtin_disp_id, client_id));
-    if (status) {
-      return status;
+    auto ret = WaitForResources(delay_hotplug, active_builtin_disp_id, client_id);
+    if (ret != HWC3::Error::None) {
+      return -EAGAIN;
     }
   }
 
@@ -3608,8 +3634,7 @@ void HWCSession::HandlePendingPowerMode(Display disp_id, const shared_ptr<Fence>
     return;
   }
 
-  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays;
-       display++) {
+  for (Display display = HWC_DISPLAY_PRIMARY + 1; display < HWCCallbacks::kNumDisplays; display++) {
     if (display == active_builtin_disp_id) {
       continue;
     }
@@ -3672,17 +3697,13 @@ void HWCSession::HandlePendingHotplug(Display disp_id, const shared_ptr<Fence> &
     return;
   }
 
-  static constexpr uint32_t min_mixer_count = 2;
-  uint32_t available_mixer_count = 0;
   std::bitset<kSecureMax> secure_sessions = 0;
   if (active_builtin_disp_id < HWCCallbacks::kNumDisplays) {
     Locker::ScopeLock lock_d(locker_[active_builtin_disp_id]);
     hwc_display_[active_builtin_disp_id]->GetActiveSecureSession(&secure_sessions);
-    available_mixer_count = hwc_display_[active_builtin_disp_id]->GetAvailableMixerCount();
   }
 
-  if (secure_sessions.any() || active_builtin_disp_id >= HWCCallbacks::kNumDisplays ||
-      available_mixer_count < min_mixer_count) {
+  if (secure_sessions.any() || active_builtin_disp_id >= HWCCallbacks::kNumDisplays) {
     return;
   }
 
@@ -4070,11 +4091,13 @@ HWC3::Error HWCSession::WaitForResources(bool wait_for_resources, Display active
         std::unique_lock<std::mutex> caller_lock(hotplug_mutex_);
         resource_ready_ = false;
 
-        const uint32_t min_vsync_period_ms = 100;
+        static constexpr uint32_t min_vsync_period_ms = 500;
         auto timeout =
             std::chrono::system_clock::now() + std::chrono::milliseconds(min_vsync_period_ms);
+
         if (hotplug_cv_.wait_until(caller_lock, timeout) == std::cv_status::timeout) {
           DLOGW("hotplug timeout");
+          return HWC3::Error::NoResources;
         }
 
         if (active_display_id_ == active_builtin_id && needs_active_builtin_reconfig &&
@@ -4624,4 +4647,16 @@ void HWCSession::NotifyDisplayAttributes(Display display, Config config) {
     NotifyResolutionChange(display, attributes);
   }
 }
+
+HWC3::Error HWCSession::SetExpectedPresentTime(Display display, uint64_t expectedPresentTime) {
+  Locker::ScopeLock lock_d(locker_[display]);
+  if (!hwc_display_[display]) {
+    return HWC3::Error::BadDisplay;
+  }
+
+  hwc_display_[display]->SetExpectedPresentTime(expectedPresentTime);
+
+  return HWC3::Error::None;
+}
+
 }  // namespace sdm

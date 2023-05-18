@@ -333,12 +333,14 @@ int IPCImpl::ProcessExportBuffers(const GenericPayload &in, GenericPayload *out)
 }
 
 int IPCImpl::ProcessOps(IPCOps op, const GenericPayload &in, GenericPayload *out) {
-  if (!out) {
-    return -EINVAL;
-  }
   int ret = 0;
+
   switch (op) {
     case kIpcOpsFilePath: {
+      if (!out) {
+        return -EINVAL;
+      }
+
       std::shared_ptr<IDemuraFileFinder> demuraAidl = nullptr;
       const std::string instance = std::string() + IDemuraFileFinder::descriptor + "/default";
       if (!AServiceManager_isDeclared(instance.c_str())) {
@@ -356,7 +358,7 @@ int IPCImpl::ProcessOps(IPCOps op, const GenericPayload &in, GenericPayload *out
         return -ENODEV;
       }
       uint32_t sz = 0;
-      uint64_t* panel_id = nullptr;
+      uint64_t *panel_id = nullptr;
       DemuraPaths *file_paths = nullptr;
       if ((ret = in.GetPayload(panel_id, &sz))) {
         DLOGE("Failed to get input payload error = %d", ret);
@@ -370,8 +372,7 @@ int IPCImpl::ProcessOps(IPCOps op, const GenericPayload &in, GenericPayload *out
       DemuraFilePaths paths = {};
       auto status = demuraAidl->getDemuraFilePaths(*panel_id, &paths);
       if (!status.isOk()) {
-        ALOGE("getDemuraFilePaths failed, status: %d: %s",
-              status.getStatus(), status.getMessage());
+        ALOGE("getDemuraFilePaths failed, status: %d: %s", status.getStatus(), status.getMessage());
         return -EINVAL;
       }
       file_paths->configPath = paths.configFilePath;

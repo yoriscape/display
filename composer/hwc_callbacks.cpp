@@ -83,7 +83,7 @@ HWC3::Error HWCCallbacks::Refresh(Display display) {
   if (!refresh_) {
     return HWC3::Error::NoResources;
   }
-  std::thread (*refresh_, callback_data_, static_cast<long>(display)).detach();
+  std::thread(*refresh_, callback_data_, static_cast<long>(display)).detach();
   pending_refresh_.set(UINT32(display));
   return HWC3::Error::None;
 }

@@ -156,7 +156,7 @@ SOONG_CONFIG_NAMESPACES += qtidisplay
 SOONG_CONFIG_qtidisplay := drmpp headless llvmsa \
                            gralloc4 displayconfig_enabled \
                            default var1 var2 var3 llvmcov  \
-                           composer_version smmu_proxy
+                           smmu_proxy
 
 # Soong Values
 SOONG_CONFIG_qtidisplay_drmpp := true
@@ -170,12 +170,6 @@ SOONG_CONFIG_qtidisplay_var2 := false
 SOONG_CONFIG_qtidisplay_var3 := false
 SOONG_CONFIG_qtidisplay_llvmcov := false
 SOONG_CONFIG_qtidisplay_smmu_proxy := false
-
-SOONG_CONFIG_qtidisplay_composer_version := v2
-ifeq ($(TARGET_USES_COMPOSER3),true)
-    SOONG_CONFIG_qtidisplay_composer_version := v3
-    $(warning "Using composer3")
-endif
 
 ifeq ($(TARGET_USES_SMMU_PROXY),true)
     SOONG_CONFIG_qtidisplay_smmu_proxy := true

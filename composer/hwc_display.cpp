@@ -206,9 +206,10 @@ HWC3::Error HWCColorMode::ApplyCurrentColorModeWithRenderIntent(bool hdr_present
       // Use the colorimetric HDR mode, if an HDR mode with the current render intent is not present
       mode_string = color_mode_map_[current_color_mode_][RenderIntent::COLORIMETRIC][kHdrType];
     }
-    if (mode_string.empty() && (current_color_mode_ == ColorMode::DISPLAY_P3 ||
-                                current_color_mode_ == ColorMode::DISPLAY_BT2020 ||
-                                current_color_mode_ == ColorMode::NATIVE) &&
+    if (mode_string.empty() &&
+        (current_color_mode_ == ColorMode::DISPLAY_P3 ||
+         current_color_mode_ == ColorMode::DISPLAY_BT2020 ||
+         current_color_mode_ == ColorMode::NATIVE) &&
         curr_dynamic_range_ == kHdrType) {
       // fall back to display_p3/display_bt2020/native SDR mode if there is no HDR mode
       mode_string = color_mode_map_[current_color_mode_][current_render_intent_][kSdrType];
@@ -497,14 +498,18 @@ int HWCDisplay::Init() {
   } else {
     error = core_intf_->CreateDisplay(sdm_id_, this, &display_intf_);
     if (error != kErrorNone) {
+      if (kErrorResources == error) {
+        return -ENODEV;
+      }
+
       if (kErrorDeviceRemoved == error) {
         DLOGW("Display creation cancelled. Display %d-%d removed.", sdm_id_, type_);
         return -ENODEV;
-      } else {
-        DLOGE("Display create failed. Error = %d display_id = %d event_handler = %p disp_intf = %p",
-              error, sdm_id_, this, &display_intf_);
-        return -EINVAL;
       }
+
+      DLOGE("Display create failed. Error = %d display_id = %d event_handler = %p disp_intf = %p",
+            error, sdm_id_, this, &display_intf_);
+      return -EINVAL;
     }
   }
 
@@ -864,6 +869,7 @@ void HWCDisplay::BuildLayerStack() {
   layer_stack_.layers.push_back(sdm_client_target);
 
   layer_stack_.elapse_timestamp = elapse_timestamp_;
+  layer_stack_.expected_present_time = expected_present_time_;
 
   layer_stack_.client_incompatible =
       dump_frame_count_ && (dump_output_to_file_ || dump_input_layers_);
@@ -2105,7 +2111,11 @@ void HWCDisplay::DumpOutputBuffer(const BufferInfo &buffer_info, void *base,
       fclose(fp);
     }
     // Need to clear buffer after dumping of current frame to provide empty buffer for next frame.
-    memset(base, 0, buffer_info.alloc_buffer_info.size);
+    // But avoid this in case of virtual display frame dump, else it would provide empty buffer
+    // to virtual display client, because it uses client buffer for dumping output.
+    if (type_ != kVirtual) {
+      memset(base, 0, buffer_info.alloc_buffer_info.size);
+    }
     DLOGI("Frame Dump of %s is %s", dump_file_name, result ? "Successful" : "Failed");
   }
 }
@@ -3099,7 +3109,11 @@ DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs
   }
 
   if (update_event_only) {
-    secure_event_ = secure_event;
+    if (secure_event == kTUITransitionPrepare) {
+      secure_event_ = kTUITransitionPrepare;
+    } else {
+      secure_event_ = kSecureEventMax;
+    }
     return kErrorNone;
   }
 

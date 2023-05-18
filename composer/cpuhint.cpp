@@ -80,8 +80,9 @@ int CPUHint::ReqHintsOffload(int hint, int tid) {
       nsecs_t difference = current_time - large_comp_cycle_.start_time;
 
       if (nanoseconds_to_seconds(difference) >= 4) {
-        DLOGV_IF(kTagCpuHint, "Renew large composition hint:%d [start_time:%" PRIu64
-                              " - current_time:%" PRIu64 " = %" PRIu64 "]",
+        DLOGV_IF(kTagCpuHint,
+                 "Renew large composition hint:%d [start_time:%" PRIu64 " - current_time:%" PRIu64
+                 " = %" PRIu64 "]",
                  large_comp_cycle_.handle_id, large_comp_cycle_.start_time, current_time,
                  difference);
 
@@ -98,8 +99,8 @@ int CPUHint::ReqHintsOffload(int hint, int tid) {
 
     if (large_comp_cycle_.status == kInactive || large_comp_cycle_.status == kRenew) {
       PerfHintStatus current_status = large_comp_cycle_.status;
-      int handle = fn_perf_hint_acq_rel_offload_(large_comp_cycle_.handle_id, hint, nullptr, tid,
-                                                 0, 0, nullptr);
+      int handle = fn_perf_hint_acq_rel_offload_(large_comp_cycle_.handle_id, hint, nullptr, tid, 0,
+                                                 0, nullptr);
       if (handle < 0) {
         DLOGW("Failed to request large composition hint ret:%d", handle);
         return -1;

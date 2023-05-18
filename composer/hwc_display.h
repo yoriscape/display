@@ -50,10 +50,10 @@
 #include "hwc_buffer_sync_handler.h"
 
 namespace composer_V3 = aidl::android::hardware::graphics::composer3;
-using composer_V3::ColorMode;
-using composer_V3::RenderIntent;
 using aidl::android::hardware::graphics::common::Dataspace;
 using aidl::android::hardware::graphics::common::Hdr;
+using composer_V3::ColorMode;
+using composer_V3::RenderIntent;
 using HwcAttribute = composer_V3::DisplayAttribute;
 using VsyncPeriodChangeConstraints = composer_V3::VsyncPeriodChangeConstraints;
 using ClientTargetProperty = composer_V3::ClientTargetProperty;
@@ -438,6 +438,7 @@ class HWCDisplay : public DisplayEventHandler {
                              int active_config_index, uint32_t num_configs){};
   virtual void Abort();
   virtual void MarkClientActive(bool is_client_up);
+  virtual void SetExpectedPresentTime(uint64_t time) { expected_present_time_ = time; }
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -620,6 +621,7 @@ class HWCDisplay : public DisplayEventHandler {
   bool validate_done_ = false;
   bool client_target_3_1_set_ = false;
   bool is_client_up_ = false;
+  uint64_t expected_present_time_ = 0;  // Expected Present time for current frame
 };
 
 inline int HWCDisplay::Perform(uint32_t operation, ...) {

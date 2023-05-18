@@ -348,6 +348,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   virtual void IdleTimeout() {}
   std::chrono::system_clock::time_point WaitUntil();
   virtual void Abort();
+  DisplayError DisableDestinationScalar();
 
   DisplayMutex disp_mutex_;
   std::thread commit_thread_;
@@ -468,6 +469,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   DisplayError InitBorderLayers();
   std::vector<LayerRect> GetBorderRects();
   void GenerateBorderLayers(const std::vector<LayerRect> &border_rects);
+  uint32_t GetMixerCountFromTopology(HWTopology topology);
   unsigned int rc_cached_res_width_ = 0;
   unsigned int rc_cached_res_height_ = 0;
   unsigned int rc_cached_mixer_width_ = 0;

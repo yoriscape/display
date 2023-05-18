@@ -2,10 +2,8 @@ composer_srcs = ["*.cpp"]
 
 cc_binary {
 
-    name: "vendor.qti.hardware.display.composer3-service",
-    defaults: ["qtidisplay_composer3_defaults"],
-    overrides: ["vendor.qti.hardware.display.composer-service"],
-    stem: "vendor.qti.hardware.display.composer-service",
+    name: "vendor.qti.hardware.display.composer-service",
+    defaults: ["qtidisplay_defaults"],
     sanitize: {
         integer_overflow: true,
     },

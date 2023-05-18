@@ -36,8 +36,8 @@
 
 #include "DisplayConfigAIDL.h"
 
-using sdm::Locker;
 using ::aidl::android::hardware::common::NativeHandle;
+using sdm::Locker;
 
 namespace aidl {
 namespace vendor {
@@ -889,8 +889,8 @@ ScopedAStatus DisplayConfigAIDL::getDisplayType(long physical_disp_id, DisplayTy
 ScopedAStatus DisplayConfigAIDL::setCWBOutputBuffer(
     const std::shared_ptr<IDisplayConfigCallback> &callback, int32_t disp_id, const Rect &rect,
     bool post_processed, const NativeHandle &buffer) {
-  if (!callback_.lock()) {
-    ALOGE("%s: Callback_ has not yet been initialized.", __FUNCTION__);
+  if (!callback) {
+    ALOGE("%s: Callback provided is invalid.", __FUNCTION__);
     return ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
   }
 
@@ -922,7 +922,7 @@ ScopedAStatus DisplayConfigAIDL::setCWBOutputBuffer(
 
   // Mutex scope
   {
-    SCOPE_LOCK(hwc_session_->locker_[disp_type]);
+    SCOPE_LOCK(hwc_session_->locker_[dpy_index]);
     if (!hwc_session_->hwc_display_[dpy_index]) {
       ALOGE("%s: Display is not created yet.", __FUNCTION__);
       return ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
@@ -941,9 +941,10 @@ ScopedAStatus DisplayConfigAIDL::setCWBOutputBuffer(
         cwb_config.tap_point, roi.left, roi.top, roi.right, roi.bottom);
 
   // TODO(user): Convert NativeHandle to native_handle_t, call PostBuffer
-  hwc_session_->cwb_.PostBuffer(callback_, cwb_config, ::android::dupFromAidl(buffer), disp_type);
 
-  return ScopedAStatus::ok();
+  int ret = hwc_session_->cwb_.PostBuffer(callback, cwb_config, ::android::dupFromAidl(buffer),
+                                          disp_type, dpy_index);
+  return ret == 0 ? ScopedAStatus::ok() : ScopedAStatus::fromExceptionCode(EX_TRANSACTION_FAILED);
 }
 
 ScopedAStatus DisplayConfigAIDL::setCameraSmoothInfo(CameraSmoothOp op, int32_t fps) {

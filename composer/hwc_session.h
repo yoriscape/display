@@ -64,11 +64,11 @@
 #include "hwc_buffer_sync_handler.h"
 #include "hwc_display_virtual_factory.h"
 
-using ::android::hardware::Return;
-using ::android::hardware::hidl_string;
-using android::hardware::hidl_handle;
-using ::android::hardware::hidl_vec;
 using ::android::sp;
+using android::hardware::hidl_handle;
+using ::android::hardware::hidl_string;
+using ::android::hardware::hidl_vec;
+using ::android::hardware::Return;
 using ::android::hardware::Void;
 namespace composer_V3 = aidl::android::hardware::graphics::composer3;
 using HwcDisplayCapability = composer_V3::DisplayCapability;
@@ -93,48 +93,34 @@ int32_t GetDataspaceFromColorMode(ColorMode mode);
 
 typedef DisplayConfig::DisplayType DispType;
 
-// Create a singleton uevent listener thread valid for life of hardware composer process.
-// This thread blocks on uevents poll inside uevent library implementation. This poll exits
-// only when there is a valid uevent, it can not be interrupted otherwise. Tieing life cycle
-// of this thread with HWC session cause HWC deinitialization to wait infinitely for the
-// thread to exit.
-class HWCUEventListener {
- public:
-  virtual ~HWCUEventListener() {}
-  virtual void UEventHandler(int connected) = 0;
-
-  int connected = -1;
-  int hpd_bpp_ = 0;
-  int hpd_pattern_ = 0;
-  std::atomic<int> uevent_counter_ = 0;
-};
-
-class HWCUEvent {
- public:
-  HWCUEvent();
-  void Deinit();
-  static void UEventThreadTop(HWCUEvent *hwc_event);
-  static void UEventThreadBottom(HWCUEvent *hwc_event);
-  void Register(HWCUEventListener *uevent_listener);
-  inline bool InitDone() { return init_done_; }
-
- private:
-  std::mutex mutex_;
-  std::condition_variable caller_cv_;
-
-  std::mutex evt_mutex_;
-  std::condition_variable evt_cv_;
-
-  HWCUEventListener *uevent_listener_ = nullptr;
-  bool init_done_ = false;
-  std::thread hot_plug_thread_;
-};
-
 constexpr int32_t kDataspaceSaturationMatrixCount = 16;
 constexpr int32_t kDataspaceSaturationPropertyElements = 9;
 constexpr int32_t kPropertyMax = 256;
 
-class HWCSession : HWCUEventListener,
+class HWCUEvent {
+ public:
+  virtual ~HWCUEvent() {}
+  // hpd handling
+  virtual void HpdInit() = 0;
+  virtual void HpdDeinit() = 0;
+  virtual void ParseUEvent(char *uevent_data, int length) = 0;
+
+  std::mutex hpd_mutex_;
+  std::condition_variable hpd_cv_;
+
+  // top thread needs to be detached as we can't control
+  // to wake it up to terminate it.
+  virtual void HpdThreadTop() = 0;
+
+ protected:
+  int hpd_connected_ = -1;
+  int hpd_bpp_ = 0;
+  int hpd_pattern_ = 0;
+  bool hpd_thread_should_terminate_ = false;
+  std::atomic<int> uevent_counter_ = 0;
+};
+
+class HWCSession : public HWCUEvent,
                    public qClient::BnQClient,
                    public HWCDisplayEventHandler,
                    public DisplayConfig::ClientContext {
@@ -345,7 +331,7 @@ class HWCSession : HWCUEventListener,
   virtual void PerformQsyncCallback(Display display, bool qsync_enabled, uint32_t refresh_rate,
                                     uint32_t qsync_refresh_rate);
   virtual void VmReleaseDone(Display display);
-  virtual int NotifyCwbDone(Display display, int32_t status, uint64_t handle_id);
+  virtual int NotifyCwbDone(int dpy_index, int32_t status, uint64_t handle_id);
 
   HWC3::Error SetVsyncEnabled(Display display, bool enabled);
   HWC3::Error GetDozeSupport(Display display, int32_t *out_support);
@@ -362,6 +348,7 @@ class HWCSession : HWCUEventListener,
                               shared_ptr<Fence> *out_retire_fence, uint32_t *out_num_types,
                               uint32_t *out_num_requests, bool *needs_commit);
   HWC3::Error TryDrawMethod(Display display, DrawMethod drawMethod);
+  HWC3::Error SetExpectedPresentTime(Display display, uint64_t expectedPresentTime);
 
   static Locker locker_[HWCCallbacks::kNumDisplays];
   static Locker power_state_[HWCCallbacks::kNumDisplays];
@@ -379,11 +366,10 @@ class HWCSession : HWCUEventListener,
    public:
     explicit CWB(HWCSession *hwc_session) : hwc_session_(hwc_session) {}
 
-    int32_t PostBuffer(std::weak_ptr<DisplayConfig::ConfigCallback> callback,
+    int32_t PostBuffer(std::shared_ptr<IDisplayConfigCallback> callback,
                        const CwbConfig &cwb_config, const native_handle_t *buffer,
-                       Display display_type);
-    bool IsCwbActiveOnDisplay(Display disp_type);
-    int OnCWBDone(Display display_type, int32_t status, uint64_t handle_id);
+                       Display display_type, int dpy_index);
+    int OnCWBDone(int dpy_index, int32_t status, uint64_t handle_id);
 
    private:
     enum CWBNotifiedStatus {
@@ -393,7 +379,7 @@ class HWCSession : HWCUEventListener,
     };
 
     struct QueueNode {
-      QueueNode(std::weak_ptr<DisplayConfig::ConfigCallback> cb, const CwbConfig &cwb_conf,
+      QueueNode(std::shared_ptr<IDisplayConfigCallback> cb, const CwbConfig &cwb_conf,
                 const hidl_handle &buf, Display disp_type, uint64_t buf_id)
           : callback(cb),
             cwb_config(cwb_conf),
@@ -401,7 +387,7 @@ class HWCSession : HWCUEventListener,
             display_type(disp_type),
             handle_id(buf_id) {}
 
-      std::weak_ptr<DisplayConfig::ConfigCallback> callback;
+      std::shared_ptr<IDisplayConfigCallback> callback;
       CwbConfig cwb_config = {};
       const native_handle_t *buffer;
       Display display_type;
@@ -418,11 +404,11 @@ class HWCSession : HWCUEventListener,
       bool async_thread_running = false;
     };
 
-    static void AsyncTaskToProcessCWBStatus(CWB *cwb, Display display_type);
-    void ProcessCWBStatus(Display display_type);
+    static void AsyncTaskToProcessCWBStatus(CWB *cwb, int dpy_index);
+    void ProcessCWBStatus(int dpy_index);
     void NotifyCWBStatus(int status, std::shared_ptr<QueueNode> cwb_node);
 
-    std::map<Display, DisplayCWBSession> display_cwb_session_map_;
+    std::map<int, DisplayCWBSession> display_cwb_session_map_;
     HWCSession *hwc_session_ = nullptr;
   };
 
@@ -566,7 +552,7 @@ class HWCSession : HWCUEventListener,
 #endif
 
   // Uevent handler
-  virtual void UEventHandler(int connected);
+  virtual void UEventHandler();
 
   // service methods
   void StartServices();
@@ -637,6 +623,8 @@ class HWCSession : HWCUEventListener,
   int WaitForVmRelease(Display display, int timeout_ms);
   void GetVirtualDisplayList();
   bool IsHWDisplayConnected(Display client_id);
+  int32_t ValidateFrameDumpConfig(uint32_t frame_dump_count, uint32_t bit_mask_disp_type,
+                                  uint32_t bit_mask_layer_type);
 
   CoreInterface *core_intf_ = nullptr;
   HWCDisplay *hwc_display_[HWCCallbacks::kNumDisplays] = {nullptr};
@@ -708,7 +696,19 @@ class HWCSession : HWCUEventListener,
   std::future<int> tui_event_handler_future_;
   std::future<int> tui_callback_handler_future_;
   bool disable_get_screen_decorator_support_ = false;
+
+  // hpd handling
+  void HpdInit() override;
+  void HpdDeinit() override;
+  void ParseUEvent(char *uevent_data, int length) override;
+  void HpdThreadTop() override;
+
+  // Bottom thread needs to be attached so we can wake
+  // it up to terminate it before terminating hwc.
+  void HpdThreadBottom();
+  std::thread hpd_thread_;
 };
+
 }  // namespace sdm
 
 #endif  // __HWC_SESSION_H__

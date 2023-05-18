@@ -205,7 +205,8 @@ int HWCColorManager::SetSolidFill(const void *params, bool enable, HWCDisplay *h
 
   if (enable) {
     LayerRect solid_fill_rect = {
-        FLOAT(solid_fill_params_.rect.x), FLOAT(solid_fill_params_.rect.y),
+        FLOAT(solid_fill_params_.rect.x),
+        FLOAT(solid_fill_params_.rect.y),
         FLOAT(solid_fill_params_.rect.x) + FLOAT(solid_fill_params_.rect.width),
         FLOAT(solid_fill_params_.rect.y) + FLOAT(solid_fill_params_.rect.height),
     };
