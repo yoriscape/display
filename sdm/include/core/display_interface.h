@@ -380,6 +380,7 @@ struct PanelFeatureInfo {
   uint32_t display_width = 0;
   uint32_t display_height = 0;
   std::string panel_name;
+  uint32_t fps = 0;
 };
 
 /*! @brief Display device event handler implemented by the client.
