@@ -143,6 +143,9 @@ qtidisplay_cc_defaults {
         smmu_proxy: {
             cflags: ["-DTARGET_USES_SMMU_PROXY"],
         },
+        ubwcp_headers: {
+            cflags: ["-DTARGET_USES_UBWCP"],
+        },
         var3 : {
             enabled: false,
             conditions_default: {

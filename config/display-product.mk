@@ -188,7 +188,7 @@ ifeq ($(call is-vendor-board-platform,QCOM),true)
 endif
 
 
-ifeq ($(TARGET_BOARD_PLATFORM), kailua)
+ifeq ($(TARGET_BOARD_PLATFORM), kalama)
     SOONG_CONFIG_qtidisplay_ubwcp_headers := false
 endif
 
