@@ -218,7 +218,6 @@ DisplayError DisplayBuiltIn::Init() {
 }
 
 DisplayError DisplayBuiltIn::Deinit() {
-  dpps_info_.Deinit();
   {
     ClientLock lock(disp_mutex_);
 
@@ -242,6 +241,7 @@ DisplayError DisplayBuiltIn::Deinit() {
     }
     demura_dynamic_enabled_ = true;
   }
+  dpps_info_.Deinit();
   return DisplayBase::Deinit();
 }
 
