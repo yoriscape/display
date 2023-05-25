@@ -3212,6 +3212,9 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
   DLOGV("Demura config updated to config index %d", demura_idx);
   event_handler_->Refresh();
 
+  // disable partial update for one frame
+  DisablePartialUpdateOneFrame();
+
   return kErrorNone;
 }
 
