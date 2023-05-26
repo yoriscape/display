@@ -34,6 +34,7 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
+#include <utils/debug.h>
 #include <algorithm>
 #include <cstring>
 
@@ -51,6 +52,14 @@ DisplayError DisplayNull::Init() {
   default_variable_config_.y_dpi = 300;
   default_variable_config_.fps = 60;
   default_variable_config_.is_yuv = false;
+
+  if (!Debug::GetNullDisplayResolution(&(default_variable_config_.x_pixels),
+                                       &(default_variable_config_.x_pixels))) {
+    DLOGI("Custom Null display resolution WxH: %ux%u", default_variable_config_.x_pixels,
+           default_variable_config_.x_pixels);
+  } else {
+    DLOGV("Custom Null display resolution values are not available.");
+  }
 
   return kErrorNone;
 }
