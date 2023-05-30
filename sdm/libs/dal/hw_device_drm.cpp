@@ -121,9 +121,6 @@
 #ifndef DRM_FORMAT_MOD_QCOM_TIGHT
 #define DRM_FORMAT_MOD_QCOM_TIGHT fourcc_mod_code(QCOM, 0x4)
 #endif
-#ifndef DRM_FORMAT_MOD_QCOM_FSC_TILE
-#define DRM_FORMAT_MOD_QCOM_FSC_TILE fourcc_mod_code(QCOM, 0x20)
-#endif
 
 #define DEST_SCALAR_OVERFETCH_SIZE 5
 
@@ -263,10 +260,6 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       break;
     case kFormatXBGR2101010:
       *drm_format = DRM_FORMAT_RGBX1010102;
-      break;
-    case kFormatC8Ubwc:
-      *drm_format = DRM_FORMAT_C8;
-      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
       break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
