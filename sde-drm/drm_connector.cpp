@@ -672,8 +672,6 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
   const string max_os_brightness = "max os brightness=";
   const string max_panel_backlight = "max panel backlight=";
   const string backlight_type = "backlight type=";
-  const string fsc_panel = "is fsc panel=";
-  const string num_fsc_fields = "num fsc fields=";
 
   while (std::getline(stream, line)) {
     if (line.find(pixel_formats) != string::npos) {
@@ -717,11 +715,8 @@ void DRMConnector::ParseCapabilities(uint64_t blob_id, DRMConnectorInfo *info) {
       if (string(line, backlight_type.length()) == "dcs") {
         info->backlight_type = string(line, backlight_type.length());
       }
-    } else if (line.find(fsc_panel) != string::npos) {
-      info->fsc_panel = std::stoi(string(line, fsc_panel.length()));
-    } else if (line.find(num_fsc_fields) != string::npos) {
-      info->num_fsc_fields = std::stoi(string(line, num_fsc_fields.length()));
     }
+
   }
 
   drmModeFreePropertyBlob(blob);
