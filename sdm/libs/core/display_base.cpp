@@ -1667,11 +1667,8 @@ DisplayError DisplayBase::PostCommit(HWLayersInfo *hw_layers_info) {
 
   CacheFrameBuffer();
 
-  // TODO: Need to clean up and add generic logic
-  if (!display_attributes_.fsc_panel) {
-    for (auto &hw_layer : disp_layer_stack_->info.hw_layers) {
-      CloseFd(&hw_layer.input_buffer.planes[0].fd);
-    }
+  for (auto &hw_layer : disp_layer_stack_->info.hw_layers) {
+    CloseFd(&hw_layer.input_buffer.planes[0].fd);
   }
 
   first_cycle_ = false;
