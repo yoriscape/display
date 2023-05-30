@@ -117,8 +117,6 @@ class HWDeviceDRM : public HWInterface {
   }
 
  protected:
-  const int kEarlyPrefil = 12;
-
   // From HWInterface
   virtual DisplayError GetDisplayId(int32_t *display_id);
   virtual DisplayError GetActiveConfig(uint32_t *active_config);
