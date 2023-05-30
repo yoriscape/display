@@ -243,7 +243,6 @@ enum struct DRMProperty {
   EPT,
   PREFILL_SIZE,
   PREFILL_TIME,
-  SYS_CACHE_TYPE,
 
   // Insert above
   MAX
