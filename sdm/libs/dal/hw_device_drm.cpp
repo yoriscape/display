@@ -277,10 +277,6 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
       *drm_format = DRM_FORMAT_C8;
       *drm_format_modifier = DRM_FORMAT_MOD_QCOM_COMPRESSED | DRM_FORMAT_MOD_QCOM_FSC_TILE;
       break;
-    case kFormatC8Fsc:
-      *drm_format = DRM_FORMAT_C8;
-      *drm_format_modifier = DRM_FORMAT_MOD_QCOM_FSC_TILE;
-      break;
     case kFormatYCbCr420SemiPlanar:
       *drm_format = DRM_FORMAT_NV12;
       break;
