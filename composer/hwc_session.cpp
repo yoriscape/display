@@ -243,7 +243,7 @@ int HWCSession::Init() {
 
   DLOGI("Getting IQService");
   android::sp<qService::IQService> iqservice = android::interface_cast<qService::IQService>(
-      android::defaultServiceManager()->getService(android::String16(qservice_name)));
+      android::defaultServiceManager()->checkService(android::String16(qservice_name)));
   DLOGI("Getting IQService...done!");
 
   if (iqservice.get()) {
