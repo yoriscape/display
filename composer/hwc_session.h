@@ -670,7 +670,7 @@ class HWCSession : public HWCUEvent,
 
   std::unordered_map<Display, VirtualDisplayData> virtual_id_map_;
   Locker pluggable_handler_lock_;
-  uint32_t idle_pc_ref_cnt_ = 0;
+  int32_t idle_pc_ref_cnt_ = 0;
   int32_t disable_hotplug_bwcheck_ = 0;
   int32_t disable_mask_layer_hint_ = 0;
   int32_t enable_primary_reconfig_req_ = 0;
