@@ -4332,6 +4332,11 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
     return kErrorNotSupported;
   }
 
+  if (mixer_attributes_.split_type == kQuadSplit) {
+    DLOGW("CWB doesn't support Quad Split for display %d-%d.", display_id_, display_type_);
+    return kErrorNotSupported;
+  }
+
   DisplayError error = kErrorNone;
   CwbConfig cwb_config = config;
 
