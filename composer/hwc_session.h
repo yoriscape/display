@@ -712,6 +712,8 @@ class HWCSession : public HWCUEvent,
   // it up to terminate it before terminating hwc.
   void HpdThreadBottom();
   std::thread hpd_thread_;
+
+  std::vector<Display> pending_hotplugs_{};
 };
 
 }  // namespace sdm
