@@ -47,24 +47,35 @@ AidlComposer::~AidlComposer() {
 ScopedAStatus AidlComposer::createClient(std::shared_ptr<IComposerClient> *aidl_return) {
   std::unique_lock<std::mutex> lock(mClientMutex);
   if (!waitForClientDestroyedLocked(lock)) {
-    *aidl_return = nullptr;
-    return TO_BINDER_STATUS(INT32(Error::NoResources));
+    // Re-initialize hwc_session (to clear state) if client (SF) is expecting to use same composer
+    // instance on restart
+    if (hwc_session_) {
+      hwc_session_->Deinit();
+      hwc_session_->Init();
+      if (composer_client_) {
+        *aidl_return = composer_client_;
+      }
+    } else {
+      *aidl_return = nullptr;
+      return TO_BINDER_STATUS(INT32(Error::NoResources));
+    }
   }
-  auto composer_client = ndk::SharedRefBase::make<AidlComposerClient>();
-  if (!composer_client || !composer_client->init()) {
+
+  composer_client_ = ndk::SharedRefBase::make<AidlComposerClient>();
+  if (!composer_client_ || !composer_client_->init()) {
     *aidl_return = nullptr;
     return TO_BINDER_STATUS(INT32(Error::NoResources));
   }
 
   if (extensions_) {
-    extensions_->init(composer_client);
+    extensions_->init(composer_client_);
   }
 
   auto clientDestroyed = [this]() { onClientDestroyed(); };
-  composer_client->setOnClientDestroyed(clientDestroyed);
+  composer_client_->setOnClientDestroyed(clientDestroyed);
 
   mClientAlive = true;
-  *aidl_return = composer_client;
+  *aidl_return = composer_client_;
 
   return ScopedAStatus::ok();
 }
@@ -87,6 +98,7 @@ binder_status_t AidlComposer::dump(int fd, const char ** /*args*/, uint32_t /*nu
 ScopedAStatus AidlComposer::getCapabilities(std::vector<Capability> *aidl_return) {
   const std::array<Capability, 2> all_caps = {{
       Capability::SIDEBAND_STREAM,
+      Capability::SKIP_VALIDATE,
   }};
 
   uint32_t count = 0;
@@ -134,7 +146,7 @@ bool AidlComposer::waitForClientDestroyedLocked(std::unique_lock<std::mutex> &lo
     // inverted (create and then destroy). Wait for a brief period to
     // see if the existing client is destroyed.
     ALOGI("waiting for previous client to be destroyed");
-    mClientDestroyedCondition.wait_for(lock, 5s, [this]() -> bool { return !mClientAlive; });
+    mClientDestroyedCondition.wait_for(lock, 1s, [this]() -> bool { return !mClientAlive; });
     if (mClientAlive) {
       ALOGE("previous client was not destroyed");
     }

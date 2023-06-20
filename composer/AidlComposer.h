@@ -58,7 +58,8 @@ class AidlComposer : public BnComposer {
   bool waitForClientDestroyedLocked(std::unique_lock<std::mutex> &lock);
   void onClientDestroyed();
 
-  shared_ptr<QtiComposer3Client> extensions_ = nullptr;
+  shared_ptr<AidlComposerClient> composer_client_ = nullptr;
+  shared_ptr<QtiComposer3Client> extensions_;
   HWCSession *hwc_session_ = nullptr;
   std::mutex mClientMutex;
   bool mClientAlive GUARDED_BY(mClientMutex) = false;
