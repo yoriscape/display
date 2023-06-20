@@ -378,6 +378,7 @@ struct PanelFeatureInfo {
   uint32_t display_width = 0;
   uint32_t display_height = 0;
   std::string panel_name;
+  uint32_t fps = 0;
 };
 
 /*! @brief Display device event handler implemented by the client.
@@ -719,6 +720,14 @@ class DisplayInterface {
     @return \link DisplayError \endlink
   */
   virtual DisplayError SetDisplayMode(uint32_t mode) = 0;
+
+  /*! @brief Method to set the bpp of the panel.
+
+    @param[in] bpp the new bpp mode.
+
+    @return \link DisplayError \endlink
+  */
+  virtual DisplayError SetBppMode(uint32_t bpp) = 0;
 
   /*! @brief Method to get the min and max refresh rate of a display.
 

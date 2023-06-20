@@ -798,6 +798,13 @@ void HWCDisplay::BuildLayerStack() {
       }
     }
 
+    // VTS case failure with solid layer dimming due to no support on pipe
+    // TODO(user): Remove this when we add support for solid_fill in pipe
+    if (layer->flags.solid_fill && layer->layer_brightness != 1.0f) {
+      layer->flags.skip = true;
+      layer->flags.solid_fill = false;
+    }
+
     if (layer->flags.skip) {
       layer_stack_.flags.skip_present = true;
     }
@@ -1898,12 +1905,6 @@ HWC3::Error HWCDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence
   flush_ = false;
   skip_commit_ = false;
 
-  if (display_pause_pending_) {
-    DLOGI("Pause display %d-%d", sdm_id_, type_);
-    display_paused_ = true;
-    display_pause_pending_ = false;
-  }
-
   layer_stack_.flags.geometry_changed = false;
   geometry_changes_ = GeometryChanges::kNone;
   flush_ = false;
@@ -1978,6 +1979,7 @@ DisplayError HWCDisplay::SetMaxMixerStages(uint32_t max_mixer_stages) {
 void HWCDisplay::DumpInputBuffers() {
   char dir_path[PATH_MAX];
   int status;
+  int dump_metadata = 0;
 
   if (!dump_input_frame_count_ || flush_ || !dump_input_layers_) {
     return;
@@ -2061,6 +2063,24 @@ void HWCDisplay::DumpInputBuffers() {
     }
 
     DLOGI("Frame Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+
+    HWCDebugHandler::Get()->GetProperty(ENABLE_METADATA_DUMPING, &dump_metadata);
+    if (dump_metadata) {
+      // Dump only extended content metadata for now. Property named generically for future extension
+      std::shared_ptr<CustomContentMetadata> c_md = layer->input_buffer.extended_content_metadata;
+      if (c_md) {
+        result = 0;
+        snprintf(dump_file_name, sizeof(dump_file_name), "%s/input_layer%d_content_md_frame%d.raw",
+                 dir_path, i, dump_frame_index_);
+        FILE *fp = fopen(dump_file_name, "w+");
+        if (fp) {
+          result = fwrite(&c_md->metadataPayload, c_md->size, 1, fp);
+          fclose(fp);
+        }
+
+        DLOGI("Frame Metadata Dump %s: is %s", dump_file_name, result ? "Successful" : "Failed");
+      }
+    }
 
     if (layer->composition == kCompositionGPUTarget) {  // Skip dumping the layers that follow
       // follow GPU Target layer in layers list (i.e. stitch layers, noise layer, demura layer).
@@ -2268,6 +2288,10 @@ void HWCDisplay::GetRealPanelResolution(uint32_t *x_pixels, uint32_t *y_pixels) 
 int HWCDisplay::SetDisplayStatus(DisplayStatus display_status) {
   int status = 0;
 
+  if (secure_event_ != kSecureEventMax) {
+    DLOGW("SetDisplayStatus is not supported when TUI transition in progress");
+    return -ENOTSUP;
+  }
   switch (display_status) {
     case kDisplayStatusResume:
       display_paused_ = false;
@@ -2371,6 +2395,10 @@ void HWCDisplay::MarkLayersForClientComposition() {
 void HWCDisplay::ApplyScanAdjustment(Rect *display_frame) {}
 
 int HWCDisplay::ToggleScreenUpdates(bool enable) {
+  if (secure_event_ != kSecureEventMax) {
+    DLOGW("Toggle screen updates is not supported when TUI transition in progress");
+    return -ENOTSUP;
+  }
   display_paused_ = enable ? false : true;
   callbacks_->Refresh(id_);
   return 0;

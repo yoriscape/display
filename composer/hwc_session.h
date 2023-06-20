@@ -349,6 +349,7 @@ class HWCSession : public HWCUEvent,
                               uint32_t *out_num_requests, bool *needs_commit);
   HWC3::Error TryDrawMethod(Display display, DrawMethod drawMethod);
   HWC3::Error SetExpectedPresentTime(Display display, uint64_t expectedPresentTime);
+  HWC3::Error GetOverlaySupport(OverlayProperties *supported_props);
 
   static Locker locker_[HWCCallbacks::kNumDisplays];
   static Locker power_state_[HWCCallbacks::kNumDisplays];
@@ -522,8 +523,11 @@ class HWCSession : public HWCUEvent,
   int HandleConnectedDisplays(HWDisplaysInfo *hw_displays_info, bool delay_hotplug);
   int HandleDisconnectedDisplays(HWDisplaysInfo *hw_displays_info);
   void DestroyDisplay(DisplayMapInfo *map_info);
+  void DestroyDisplayLocked(DisplayMapInfo *map_info);
   void DestroyPluggableDisplay(DisplayMapInfo *map_info);
+  void DestroyPluggableDisplayLocked(DisplayMapInfo *map_info);
   void DestroyNonPluggableDisplay(DisplayMapInfo *map_info);
+  void DestroyNonPluggableDisplayLocked(DisplayMapInfo *map_info);
   int GetConfigCount(int disp_id, uint32_t *count);
   int GetActiveConfigIndex(int disp_id, uint32_t *config);
   int SetActiveConfigIndex(int disp_id, uint32_t config);
@@ -581,6 +585,7 @@ class HWCSession : public HWCUEvent,
   android::status_t SetColorModeById(const android::Parcel *input_parcel);
   android::status_t SetColorModeFromClient(const android::Parcel *input_parcel);
   android::status_t getComposerStatus();
+  android::status_t SetBppMode(const android::Parcel *input_parcel);
   android::status_t SetQSyncMode(const android::Parcel *input_parcel);
   android::status_t SetIdlePC(const android::Parcel *input_parcel);
   android::status_t RefreshScreen(const android::Parcel *input_parcel);
@@ -707,6 +712,8 @@ class HWCSession : public HWCUEvent,
   // it up to terminate it before terminating hwc.
   void HpdThreadBottom();
   std::thread hpd_thread_;
+
+  std::vector<Display> pending_hotplugs_{};
 };
 
 }  // namespace sdm

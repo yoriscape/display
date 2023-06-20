@@ -614,6 +614,12 @@ enum struct DRMOps {
    *      uint64_t - Expected Present Time
    */
   CONNECTOR_SET_EPT,
+  /*
+   * Op: Set bpp24/bpp30 to panel
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - BppMode24-1, BppMode30-2
+   */
+  CONNECTOR_SET_BPP_MODE,
 };
 
 enum struct DRMRotation {
@@ -877,6 +883,7 @@ struct DRMSubModeInfo {
   uint32_t panel_compression_mode;
   DRMTopology topology;
   std::vector<uint64_t> dyn_bitclk_list;
+  uint32_t bpp_mode;
 };
 
 enum DynamicFrontPorchType {
@@ -913,6 +920,7 @@ struct DRMModeInfo {
   std::vector<uint32_t> dyn_fp_list;
   std::vector<DRMSubModeInfo> sub_modes;
   uint32_t qsync_min_fps;
+  uint32_t curr_bpp_mode;
 };
 
 /* Per Connector Info*/

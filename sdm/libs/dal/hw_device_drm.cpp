@@ -327,10 +327,14 @@ static void GetDRMFormat(LayerBufferFormat format, uint32_t *drm_format,
   }
 }
 
-FrameBufferObject::FrameBufferObject(uint32_t fb_id, LayerBufferFormat format,
-                             uint32_t width, uint32_t height, bool shallow)
-  :fb_id_(fb_id), format_(format), width_(width), height_(height),
-  shallow_(shallow) {}
+FrameBufferObject::FrameBufferObject(uint32_t fb_id, LayerBufferFormat format, uint32_t width,
+                                     uint32_t height, bool shallow, bool secure)
+    : fb_id_(fb_id),
+      format_(format),
+      width_(width),
+      height_(height),
+      shallow_(shallow),
+      secure_(secure) {}
 
 FrameBufferObject::~FrameBufferObject() {
   // Don't call RemoveFbId in case its a shallow copy from other display
@@ -351,9 +355,10 @@ uint32_t FrameBufferObject::GetFbId() {
   return fb_id_;
 }
 
-bool FrameBufferObject::IsEqual(LayerBufferFormat format,
-                                uint32_t width, uint32_t height) {
-    return (format == format_ && width == width_ && height == height_);
+bool FrameBufferObject::IsEqual(LayerBufferFormat format, uint32_t width, uint32_t height,
+                                bool secure) {
+  // Create a new framebuffer object when the format, width, height, or secure flag gets updated
+  return (format == format_ && width == width_ && height == height_ && secure == secure_);
 }
 
 HWDeviceDRM::Registry::Registry(BufferAllocator *buffer_allocator) :
@@ -427,6 +432,9 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   }
 
   uint64_t handle_id = buffer.handle_id;
+  bool secure_present =
+      (buffer.flags.secure || buffer.flags.secure_display || buffer.flags.secure_camera);
+
   if (!handle_id || disable_fbid_cache_) {
     // In legacy path, clear fb_id map in each frame.
     layer->buffer_map->buffer_map.clear();
@@ -436,7 +444,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
       auto it2 = output_buffer_map_.find(handle_id);
       if (it2 != output_buffer_map_.end()) {
         FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(it2->second.get());
-        if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height)) {
+        if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height, secure_present)) {
           layer->buffer_map->buffer_map[handle_id] = output_buffer_map_[handle_id];
           // Found fb_id for given handle_id key
           return 0;
@@ -446,7 +454,7 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
     auto it = layer->buffer_map->buffer_map.find(handle_id);
     if (it != layer->buffer_map->buffer_map.end()) {
       FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(it->second.get());
-      if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height)) {
+      if (fb_obj->IsEqual(buffer.format, buffer.width, buffer.height, secure_present)) {
         // Found fb_id for given handle_id key
         return 0;
       } else {
@@ -466,8 +474,9 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
     return -EINVAL;
   }
   // Create and cache the fb_id in map
-  layer->buffer_map->buffer_map[handle_id] =
-      std::make_shared<FrameBufferObject>(fb_id, buffer.format, buffer.width, buffer.height);
+  layer->buffer_map->buffer_map[handle_id] = std::make_shared<FrameBufferObject>(
+      fb_id, buffer.format, buffer.width, buffer.height, false /* shallow */, secure_present);
+
   return 0;
 }
 
@@ -477,6 +486,9 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
   }
 
   uint64_t handle_id = output_buffer->handle_id;
+  bool secure_present = (output_buffer->flags.secure || output_buffer->flags.secure_display ||
+                         output_buffer->flags.secure_camera);
+
   if (!handle_id || disable_fbid_cache_) {
     // In legacy path, clear output buffer map in each frame.
     output_buffer_map_.clear();
@@ -484,7 +496,8 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
     auto it = output_buffer_map_.find(handle_id);
     if (it != output_buffer_map_.end()) {
       FrameBufferObject *fb_obj = static_cast<FrameBufferObject*>(it->second.get());
-      if (fb_obj->IsEqual(output_buffer->format, output_buffer->width, output_buffer->height)) {
+      if (fb_obj->IsEqual(output_buffer->format, output_buffer->width, output_buffer->height,
+                          secure_present)) {
         return;
       } else {
         output_buffer_map_.erase(it);
@@ -499,8 +512,9 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
 
   uint32_t fb_id = 0;
   if (CreateFbId(*output_buffer, &fb_id) >= 0) {
-    output_buffer_map_[handle_id] = std::make_shared<FrameBufferObject>(fb_id,
-        output_buffer->format, output_buffer->width, output_buffer->height);
+    output_buffer_map_[handle_id] = std::make_shared<FrameBufferObject>(
+        fb_id, output_buffer->format, output_buffer->width, output_buffer->height,
+        false /* shallow */, secure_present);
   }
 }
 
@@ -694,6 +708,8 @@ void HWDeviceDRM::InitializeConfigs() {
     uint32_t sub_mode_index = connector_info_.modes[mode_index].curr_submode_index;
     connector_info_.modes[mode_index].curr_compression_mode =
               connector_info_.modes[mode_index].sub_modes[sub_mode_index].panel_compression_mode;
+    connector_info_.modes[mode_index].curr_bpp_mode =
+              connector_info_.modes[mode_index].sub_modes[sub_mode_index].bpp_mode;
     if (panel_mode_pref &
         connector_info_.modes[mode_index].sub_modes[sub_mode_index].panel_mode_caps) {
       connector_info_.modes[mode_index].cur_panel_mode = panel_mode_pref;
@@ -1693,6 +1709,10 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     }
   }
 
+  if (bpp_mode_changed_) {
+      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BPP_MODE, token_.conn_id, bpp_mode_changed_);
+  }
+
   if (first_cycle_) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, token_.conn_id,
                               topology_control_);
@@ -1920,6 +1940,7 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     seamless_mode_switch_ = false;
     panel_compression_changed_ = 0;
     transfer_time_updated_ = 0;
+    bpp_mode_changed_ = 0;
     return kErrorHardware;
   }
 
@@ -1974,6 +1995,17 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     panel_mode_changed_ = 0;
     synchronous_commit_ = false;
     reset_output_fence_offset_ = true;
+  }
+
+  if (bpp_mode_changed_) {
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (bpp_mode_changed_ == current_mode.sub_modes[submode_idx].bpp_mode) {
+        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+        connector_info_.modes[current_mode_index_].curr_bpp_mode = bpp_mode_changed_;
+      }
+    }
+    bpp_mode_changed_ = 0;
   }
 
   panel_compression_changed_ = 0;
@@ -2894,6 +2926,10 @@ bool HWDeviceDRM::IsFullFrameUpdate(const HWLayersInfo &hw_layer_info) {
   }
 
   return true;
+}
+
+DisplayError HWDeviceDRM::SetBppMode(uint32_t bpp) {
+  return kErrorNotSupported;
 }
 
 DisplayError HWDeviceDRM::SetDynamicDSIClock(uint64_t bit_clk_rate) {

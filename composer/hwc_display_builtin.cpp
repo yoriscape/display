@@ -1099,6 +1099,16 @@ HWC3::Error HWCDisplayBuiltIn::GetPanelMaxBrightness(uint32_t *max_brightness_le
   return HWC3::Error::None;
 }
 
+DisplayError HWCDisplayBuiltIn::SetBppMode(uint32_t bpp) {
+  DisplayError error = kErrorNotSupported;
+
+  if (display_intf_) {
+      error = display_intf_->SetBppMode(bpp);
+  }
+
+  return error;
+}
+
 HWC3::Error HWCDisplayBuiltIn::SetBLScale(uint32_t level) {
   DisplayError ret = display_intf_->SetBLScale(level);
   if (ret != kErrorNone) {

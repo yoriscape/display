@@ -465,6 +465,7 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     }
   }
 
+#ifndef TRUSTED_VM
   GetFeatureLicenseFactory get_feature_license_factory_ptr = nullptr;
   if (!feature_impl_lib.Sym(GET_FEATURE_LICENSE_FACTORY,
                             reinterpret_cast<void **>(&get_feature_license_factory_ptr))) {
@@ -477,6 +478,7 @@ DisplayError DisplayBase::SetupPanelFeatureFactory() {
     DLOGE("Failed to create FeatureLicenseFactory");
     return kErrorResources;
   }
+#endif
 
   DLOGI("Setup pf factory and prop intf for Panel Features");
   return kErrorNone;
@@ -4258,6 +4260,8 @@ DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
   info->display_width = display_attributes_.x_pixels;
   info->display_height = display_attributes_.y_pixels;
   info->panel_name = std::string(hw_panel_info_.panel_name);
+  info->fps = display_attributes_.fps;
+
   return kErrorNone;
 }
 

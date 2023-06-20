@@ -197,6 +197,12 @@ enum HWTopology {
   kPPSplit,
 };
 
+enum HWBppMode {
+  kBppModeNone = 0,
+  kBppMode24 = 0x1,
+  kBppMode30 = 0x2,
+};
+
 enum HWMixerSplit {
   kNoSplit,
   kDualSplit,
@@ -530,6 +536,7 @@ struct HWPanelInfo {
   uint32_t supported_colorspaces = 0;  // supported_colorspaces for DP displays.
   uint32_t qsync_fps = 0;              // Min qsync fps
   bool has_cwb_crop = false;           // CWB Crop support
+
 
   bool operator !=(const HWPanelInfo &panel_info) {
     return ((port != panel_info.port) || (mode != panel_info.mode) ||
@@ -1054,11 +1061,11 @@ struct Resolution {
 
 class FrameBufferObject : public LayerBufferObject {
  public:
-  explicit FrameBufferObject(uint32_t fb_id, LayerBufferFormat format,
-                             uint32_t width, uint32_t height, bool shallow = false);
+  explicit FrameBufferObject(uint32_t fb_id, LayerBufferFormat format, uint32_t width,
+                             uint32_t height, bool shallow = false, bool secure = false);
   ~FrameBufferObject();
   uint32_t GetFbId();
-  bool IsEqual(LayerBufferFormat format, uint32_t width, uint32_t height);
+  bool IsEqual(LayerBufferFormat format, uint32_t width, uint32_t height, bool secure);
 
  private:
   uint32_t fb_id_;
@@ -1066,6 +1073,7 @@ class FrameBufferObject : public LayerBufferObject {
   uint32_t width_;
   uint32_t height_;
   bool shallow_;
+  bool secure_;
 };
 
 /* Downscale Blur flags */

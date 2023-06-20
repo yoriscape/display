@@ -136,6 +136,7 @@
 #define FORCE_TONEMAPPING                    DISPLAY_PROP("force_tonemapping")
 // Allows color management(tonemapping) in native mode (native mode is considered BT709+sRGB)
 #define ALLOW_TONEMAP_NATIVE                 DISPLAY_PROP("allow_tonemap_native")
+#define ENABLE_METADATA_DUMPING              DISPLAY_PROP("enable_metadata_dump")
 
 // RC
 #define ENABLE_ROUNDED_CORNER                DISPLAY_PROP("enable_rounded_corner")
@@ -158,6 +159,7 @@
 #define DEMURA_PRIMARY_PANEL_OVERRIDE_HIGH    DISPLAY_PROP("demura_primary_panel_override_high")
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_LOW    DISPLAY_PROP("demura_secondary_panel_override_low")
 #define DEMURA_SECONDARY_PANEL_OVERRIDE_HIGH    DISPLAY_PROP("demura_secondary_panel_override_high")
+#define ENABLE_DEMURA_BL_SCREEN_REFRESH      DISPLAY_PROP("enable_demura_backlight_screen_refresh")
 // Panel Feature DemuraTn Properties
 #define ENABLE_ANTI_AGING                    DISPLAY_PROP("enable_antiaging")
 #define ENABLE_ACCELERATED_AGING             DISPLAY_PROP("enable_accelerated_aging")
