@@ -608,6 +608,8 @@ class HWCSession : public HWCUEvent,
   bool IsHWDisplayConnected(Display client_id);
   int32_t ValidateFrameDumpConfig(uint32_t frame_dump_count, uint32_t bit_mask_disp_type,
                                   uint32_t bit_mask_layer_type);
+  bool TeardownPluggableDisplays();
+  int DisconnectPluggableDisplays(DisplayMapInfo &map_info);
 
   CoreInterface *core_intf_ = nullptr;
   HWCDisplay *hwc_display_[HWCCallbacks::kNumDisplays] = {nullptr};
@@ -668,7 +670,7 @@ class HWCSession : public HWCUEvent,
   std::shared_ptr<IPCIntf> ipc_intf_ = nullptr;
   bool primary_pending_ = true;
   Locker primary_display_lock_;
-  std::map<Display, sdm::DisplayType> map_active_displays_;
+  std::map<Display, DisplayMapInfo *> map_active_displays_;
   vector<HWDisplayInfo> virtual_display_list_ = {};
   std::map<hwc2_display_t, std::future<int>> commit_done_future_;
   std::mutex tui_handler_lock_;
