@@ -1209,7 +1209,9 @@ HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
   int support = 0;
   auto status = GetDozeSupport(display, &support);
   if (status != HWC3::Error::None) {
-    DLOGE("Failed to get doze support Error = %d", status);
+    if (is_builtin) {
+      DLOGE("Failed to get doze support Error = %d", status);
+    }
     return status;
   }
 
@@ -1275,7 +1277,7 @@ HWC3::Error HWCSession::GetDozeSupport(Display display, int32_t *out_support) {
 
   if (display >= HWCCallbacks::kNumDisplays || (hwc_display_[display] == nullptr)) {
     // display may come as -1  from VTS test case
-    DLOGE("Invalid Display %d ", UINT32(display));
+    DLOGW("Invalid Display %d ", UINT32(display));
     return HWC3::Error::BadDisplay;
   }
 
