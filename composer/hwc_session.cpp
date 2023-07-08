@@ -4189,6 +4189,11 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
     target_display = GetActiveBuiltinDisplay();
   }
 
+  HWC3::Error error = TeardownConcurrentWriteback(target_display);
+  if (error != HWC3::Error::None) {
+    return -ENODEV;
+  }
+
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
@@ -4245,11 +4250,6 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
-  }
-
-  HWC3::Error error = TeardownConcurrentWriteback(target_display);
-  if (error != HWC3::Error::None) {
-    return -ENODEV;
   }
 
   {
@@ -4476,15 +4476,22 @@ HWC3::Error HWCSession::TeardownConcurrentWriteback(Display display) {
   }
 
   for (int id = 0; id < HWCCallbacks::kNumRealDisplays; id++) {
-    if (!hwc_display_[id]) {
-      continue;
+    HWCDisplay *disp = nullptr;
+    {
+      SCOPE_LOCK(locker_[id]);
+      if (!hwc_display_[id]) {
+        continue;
+      }
+
+      int32_t display_type = 0;
+      hwc_display_[id]->GetDisplayType(&display_type);
+      if (display_type == INT32(DisplayBasicType::kPhysical)) {
+        disp = hwc_display_[id];
+      }
     }
 
-    int32_t display_type = 0;
-    SCOPE_LOCK(locker_[id]);
-    hwc_display_[id]->GetDisplayType(&display_type);
-    if (display_type == INT32(DisplayBasicType::kPhysical)) {
-      hwc_display_[id]->TeardownConcurrentWriteback();
+    if (disp) {
+      disp->TeardownConcurrentWriteback();
     }
   }
 
