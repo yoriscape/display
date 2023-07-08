@@ -104,9 +104,8 @@ void UbwcpUtils::ConfigUBWCPAttributes(private_handle_t const *handle) {
   int ret = 0;
   BufferInfo info(hnd->unaligned_width, hnd->unaligned_height, hnd->format,
                   hnd->usage | GRALLOC_USAGE_PRIVATE_NO_UBWC_P);
-  // this will be added in subsequent patches
-  //if (IsUBwcPEnabled(hnd->format, hnd->usage))
-  {
+
+  if (IsUBwcPEnabled(hnd->format, hnd->usage)) {
     void *session;
     hnd->ubwcp_format = true;
     size_t planar_padding;

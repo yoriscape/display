@@ -4243,9 +4243,11 @@ DisplayError DisplayBase::SetDimmingMinBl(int min_bl) {
 
 /* this func is called by DC dimming feature only after PCC updates */
 void DisplayBase::ScreenRefresh() {
-  ClientLock lock(disp_mutex_);
-  /* do not skip validate */
-  validated_ = false;
+  {
+    ClientLock lock(disp_mutex_);
+    /* do not skip validate */
+    validated_ = false;
+  }
   event_handler_->Refresh();
 }
 
@@ -4327,6 +4329,11 @@ DisplayError DisplayBase::CaptureCwb(const LayerBuffer &output_buffer, const Cwb
   ClientLock lock(disp_mutex_);
 
   if (!hw_resource_info_.has_concurrent_writeback) {
+    return kErrorNotSupported;
+  }
+
+  if (mixer_attributes_.split_type == kQuadSplit) {
+    DLOGW("CWB doesn't support Quad Split for display %d-%d.", display_id_, display_type_);
     return kErrorNotSupported;
   }
 
