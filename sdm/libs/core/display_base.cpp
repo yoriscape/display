@@ -2976,7 +2976,13 @@ bool DisplayBase::NeedsMixerReconfiguration(LayerStack *layer_stack, uint32_t *n
   uint32_t display_width = display_attributes_.x_pixels;
   uint32_t display_height = display_attributes_.y_pixels;
 
-  if (hw_resource_info_.has_concurrent_writeback && layer_stack->output_buffer) {
+  bool valid_lm_tappoint = layer_stack->cwb_config
+                               ? layer_stack->cwb_config->tap_point == CwbTapPoint::kLmTapPoint
+                               : false;
+  // Resize mixer attributes to fb config when client requests CWB at LM tap-point
+  // TODO(user): remove below check when clients request buffer with mixer resolution
+  if (hw_resource_info_.has_concurrent_writeback && layer_stack->output_buffer &&
+      valid_lm_tappoint) {
     DLOGV_IF(kTagDisplay, "Found concurrent writeback, configure LM width:%d height:%d", fb_width,
              fb_height);
     *new_mixer_width = fb_width;
