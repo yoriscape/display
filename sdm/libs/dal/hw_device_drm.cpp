@@ -1941,14 +1941,28 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
                                    &release_fence_fd, &retire_fence_fd);
 
   bool sync_commit = synchronous_commit_ || first_cycle_;
+  uint64_t elapse_timestamp = hw_layers_info->elapse_timestamp;
 
-  if (hw_layers_info->elapse_timestamp > 0) {
-    struct timespec t = {0, 0};
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    uint64_t current_time = (UINT64(t.tv_sec) * 1000000000LL + t.tv_nsec);
-    if (current_time < hw_layers_info->elapse_timestamp) {
-      usleep(UINT32((hw_layers_info->elapse_timestamp - current_time) / 1000));
+  struct timespec t = {0, 0};
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  uint64_t current_time = (UINT64(t.tv_sec) * 1000000000LL + t.tv_nsec);
+
+  // Handle the case where EPT and Current time delta is beyond the QSync MinFps period.
+  if (hw_panel_info_.qsync_support && (hw_layers_info->hw_avr_info.mode != kQsyncNone) &&
+      (connector_info_.qsync_fps > 0)) {
+    uint64_t qsync_fps_period = (1000.0f / FLOAT(connector_info_.qsync_fps)) * 1000000;
+    if (hw_layers_info->expected_present_time > current_time) {
+      if ((hw_layers_info->expected_present_time - current_time) > qsync_fps_period) {
+        uint64_t vsync_period = display_attributes_[current_mode_index_].vsync_period_ns;
+        if (hw_layers_info->expected_present_time > vsync_period) {
+          elapse_timestamp = hw_layers_info->expected_present_time - vsync_period;
+        }
+      }
     }
+  }
+
+  if ((elapse_timestamp > 0) && (current_time < elapse_timestamp)) {
+    usleep(UINT32((elapse_timestamp - current_time) / 1000));
   }
 
   int ret = drm_atomic_intf_->Commit(sync_commit, false /* retain_planes*/);
