@@ -254,7 +254,7 @@ DisplayError HWPeripheralDRM::SetBppMode(uint32_t bpp) {
     }
   }
 
-  DLOGE("current display mode dont't support switch to bpp: %d", bpp);
+  DLOGW("current display mode dont't support switch to bpp: %d", bpp);
   return kErrorNotSupported;
 }
 

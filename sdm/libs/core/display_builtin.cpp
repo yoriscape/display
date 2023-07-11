@@ -1295,9 +1295,11 @@ DisplayError DisplayBuiltIn::SetBppMode(uint32_t bpp) {
       return error;
     }
     DisplayBase::ReconfigureDisplay();
+    shared_ptr<Fence> release_fence = nullptr;
+    SetDisplayState(kStateOff, 0, &release_fence);
+    sleep(1);
+    SetDisplayState(kStateOn, 0, &release_fence);
   }
-
-  event_handler_->Refresh();
 
   return kErrorNone;
 }
