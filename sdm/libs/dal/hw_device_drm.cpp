@@ -63,7 +63,8 @@
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Changes from Qualcomm Innovation Center are provided under the following license:
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
  *
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -487,7 +488,8 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   return 0;
 }
 
-void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer, bool *fb_modified) {
+void HWDeviceDRM::Registry::MapOutputBufferToFbId(std::shared_ptr<LayerBuffer> output_buffer,
+                                                  bool *fb_modified) {
   if (output_buffer->planes[0].fd < 0) {
     return;
   }
@@ -3245,7 +3247,7 @@ DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
 
 void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info) {
   CwbConfig *cwb_config = hw_layer_info.hw_cwb_config;
-  LayerBuffer *output_buffer = hw_layer_info.output_buffer;
+  std::shared_ptr<LayerBuffer> output_buffer = hw_layer_info.output_buffer;
   bool fb_modified = false;
   registry_.MapOutputBufferToFbId(output_buffer, &fb_modified);
   uint32_t &vitual_conn_id = cwb_config_.token.conn_id;
@@ -3341,7 +3343,7 @@ DisplayError HWDeviceDRM::TeardownConcurrentWriteback(void) {
   return kErrorNone;
 }
 
-void HWDeviceDRM::PostCommitConcurrentWriteback(LayerBuffer *output_buffer) {
+void HWDeviceDRM::PostCommitConcurrentWriteback(std::shared_ptr<LayerBuffer> output_buffer) {
   if (hw_resource_.has_concurrent_writeback && output_buffer) {
     return;
   }
