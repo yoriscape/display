@@ -384,7 +384,7 @@ DisplayError ResourceDefault::PreCommit(Handle display_ctx) {
 void ResourceDefault::HandleSkipValidate(Handle display_ctx) {
 }
 
-std::string ResourceDefault::Dump() {
+std::string ResourceDefault::Dump(Handle display_ctx) {
   return "";
 }
 
