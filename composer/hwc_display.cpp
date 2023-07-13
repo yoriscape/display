@@ -3144,6 +3144,7 @@ DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs
   if (secure_event == kTUITransitionEnd || secure_event == kTUITransitionUnPrepare) {
     DLOGI("Resume display %d-%d", sdm_id_, type_);
     display_paused_ = false;
+    display_pause_pending_ = false;
     if (*needs_refresh == false) {
       secure_event_ = kSecureEventMax;
       return kErrorNone;
@@ -3168,6 +3169,7 @@ DisplayError HWCDisplay::PostHandleSecureEvent(SecureEvent secure_event) {
     if (secure_event == kTUITransitionEnd || secure_event == kTUITransitionUnPrepare) {
       return kErrorNone;
     }
+    DLOGV("Set secure_event to %d", secure_event);
     secure_event_ = secure_event;
   }
   return err;
