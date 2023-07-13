@@ -3375,9 +3375,24 @@ void HWCSession::DestroyNonPluggableDisplayLocked(DisplayMapInfo *map_info) {
   map_info->Reset();
 }
 
+void HWCSession::RemoveDisconnectedPluggableDisplays() {
+  SCOPE_LOCK(pluggable_handler_lock_);
+
+  HWDisplaysInfo hw_displays_info = {};
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    return;
+  }
+
+  HandleDisconnectedDisplays(&hw_displays_info);
+}
+
 void HWCSession::PerformDisplayPowerReset() {
+  RemoveDisconnectedPluggableDisplays();
+
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> lock(command_seq_mutex_);
+
   // Acquire lock on all displays.
   for (Display display = HWC_DISPLAY_PRIMARY; display < HWCCallbacks::kNumDisplays; display++) {
     locker_[display].Lock();
@@ -3396,6 +3411,7 @@ void HWCSession::PerformDisplayPowerReset() {
       }
     }
   }
+
   for (Display display = HWC_DISPLAY_PRIMARY; display < HWCCallbacks::kNumDisplays; display++) {
     if (hwc_display_[display] != NULL) {
       PowerMode mode = last_power_mode[display];
