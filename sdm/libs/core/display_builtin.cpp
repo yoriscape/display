@@ -2655,10 +2655,12 @@ void DisplayBuiltIn::SendDisplayConfigs() {
     if (error != kErrorNone) {
       return;
     }
-    disp_configs->h_total = display_attributes_.h_total;
-    disp_configs->v_total = display_attributes_.v_total;
-    disp_configs->fps = display_attributes_.fps;
-    disp_configs->smart_panel = display_attributes_.smart_panel;
+    HWDisplayAttributes display_attributes = {};
+    hw_intf_->GetDisplayAttributes(active_index, &display_attributes);
+    disp_configs->h_total = display_attributes.h_total;
+    disp_configs->v_total = display_attributes.v_total;
+    disp_configs->fps = display_attributes.fps;
+    disp_configs->smart_panel = display_attributes.smart_panel;
     disp_configs->is_primary = IsPrimaryDisplayLocked();
     if ((ret = ipc_intf_->SetParameter(kIpcParamDisplayConfigs, in))) {
       DLOGW("Failed to send display config, error = %d", ret);
