@@ -372,6 +372,8 @@ HWDeviceDRM::Registry::Registry(BufferAllocator *buffer_allocator) :
 int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
   uint32_t hw_layer_count = UINT32(hw_layers_info->hw_layers.size());
   int err = 0;
+  bool fb_modified = false;
+
   for (uint32_t i = 0; i < hw_layer_count; i++) {
     Layer &layer = hw_layers_info->hw_layers.at(i);
     LayerBuffer input_buffer = layer.input_buffer;
@@ -388,9 +390,12 @@ int HWDeviceDRM::Registry::Register(HWLayersInfo *hw_layers_info) {
       input_buffer.width *= 2;
       input_buffer.height /= 2;
     }
-    int ret = MapBufferToFbId(&layer, input_buffer);
+    int ret = MapBufferToFbId(&layer, input_buffer, &fb_modified);
     if (!err) {
       err = ret;
+      if (fb_modified) {
+        hw_layers_info->updates_mask.set(kUpdateFBObject);
+      }
     }
   }
   return err;
@@ -426,7 +431,8 @@ int HWDeviceDRM::Registry::CreateFbId(const LayerBuffer &buffer, uint32_t *fb_id
   return ret;
 }
 
-int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buffer) {
+int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buffer,
+                                           bool *fb_modified) {
   if (buffer.planes[0].fd < 0) {
     return 0;
   }
@@ -476,11 +482,12 @@ int HWDeviceDRM::Registry::MapBufferToFbId(Layer *layer, const LayerBuffer &buff
   // Create and cache the fb_id in map
   layer->buffer_map->buffer_map[handle_id] = std::make_shared<FrameBufferObject>(
       fb_id, buffer.format, buffer.width, buffer.height, false /* shallow */, secure_present);
+  *fb_modified = true;
 
   return 0;
 }
 
-void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
+void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer, bool *fb_modified) {
   if (output_buffer->planes[0].fd < 0) {
     return;
   }
@@ -515,6 +522,7 @@ void HWDeviceDRM::Registry::MapOutputBufferToFbId(LayerBuffer *output_buffer) {
     output_buffer_map_[handle_id] = std::make_shared<FrameBufferObject>(
         fb_id, output_buffer->format, output_buffer->width, output_buffer->height,
         false /* shallow */, secure_present);
+    *fb_modified = true;
   }
 }
 
@@ -1257,6 +1265,9 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   ResetROI();
   ClearSolidfillStages();
   int64_t retire_fence_fd = -1;
+  if (bpp_mode_changed_) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BPP_MODE, token_.conn_id, bpp_mode_changed_);
+  }
   drmModeModeInfo current_mode = connector_info_.modes[current_mode_index_].mode;
   if (!IsSeamlessTransition()) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode);
@@ -1272,14 +1283,28 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
 
   int ret = NullCommit(false /* synchronous */, false /* retain_planes */);
   if (ret) {
-    DLOGE("Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
-     "panel_mode_changed_=%d bit_clk_rate_=%d", ret, hw_panel_info_.dynamic_fps,
-     seamless_mode_switch_, vrefresh_, panel_mode_changed_, bit_clk_rate_);
+    DLOGE(
+        "Failed with error: %d, dynamic_fps=%d, seamless_mode_switch_=%d, vrefresh_=%d,"
+        "panel_mode_changed_=%d bit_clk_rate_=%d bpp_mode_changed_=%d",
+        ret, hw_panel_info_.dynamic_fps, seamless_mode_switch_, vrefresh_, panel_mode_changed_,
+        bit_clk_rate_, bpp_mode_changed_);
+    bpp_mode_changed_ = 0;
     return kErrorHardware;
   }
 
   if (cwb_config_.enabled) {
     FlushConcurrentWriteback();
+  }
+
+  if (bpp_mode_changed_) {
+    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
+    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
+      if (bpp_mode_changed_ == current_mode.sub_modes[submode_idx].bpp_mode) {
+        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
+        connector_info_.modes[current_mode_index_].curr_bpp_mode = bpp_mode_changed_;
+      }
+    }
+    bpp_mode_changed_ = 0;
   }
 
   sync_points->retire_fence = Fence::Create(INT(retire_fence_fd), "retire_power_off");
@@ -1405,8 +1430,9 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
   noise_cfg_ = {};
   bool resource_update = hw_layers_info->updates_mask.test(kUpdateResources);
   bool buffer_update = hw_layers_info->updates_mask.test(kSwapBuffers);
+  bool fb_update = hw_layers_info->updates_mask.test(kUpdateFBObject);
   bool update_config = resource_update || buffer_update || tui_state_ == kTUIStateEnd ||
-                       hw_layers_info->flags.geometry_changed;
+                       hw_layers_info->flags.geometry_changed || fb_update;
   bool update_luts = hw_layers_info->updates_mask.test(kUpdateLuts);
 
   if (hw_panel_info_.partial_update && update_config) {
@@ -1709,10 +1735,6 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
     }
   }
 
-  if (bpp_mode_changed_) {
-      drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BPP_MODE, token_.conn_id, bpp_mode_changed_);
-  }
-
   if (first_cycle_) {
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_TOPOLOGY_CONTROL, token_.conn_id,
                               topology_control_);
@@ -1940,7 +1962,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     seamless_mode_switch_ = false;
     panel_compression_changed_ = 0;
     transfer_time_updated_ = 0;
-    bpp_mode_changed_ = 0;
     return kErrorHardware;
   }
 
@@ -1975,7 +1996,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     vrefresh_ = 0;
   }
 
-
   if (bit_clk_rate_) {
     // Update current mode index if bit clk rate is changed.
     connector_info_.modes[current_mode_index_].curr_bit_clk_rate = bit_clk_rate_;
@@ -1995,17 +2015,6 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
     panel_mode_changed_ = 0;
     synchronous_commit_ = false;
     reset_output_fence_offset_ = true;
-  }
-
-  if (bpp_mode_changed_) {
-    sde_drm::DRMModeInfo current_mode = connector_info_.modes[current_mode_index_];
-    for (uint32_t submode_idx = 0; submode_idx < current_mode.sub_modes.size(); submode_idx++) {
-      if (bpp_mode_changed_ == current_mode.sub_modes[submode_idx].bpp_mode) {
-        connector_info_.modes[current_mode_index_].curr_submode_index = submode_idx;
-        connector_info_.modes[current_mode_index_].curr_bpp_mode = bpp_mode_changed_;
-      }
-    }
-    bpp_mode_changed_ = 0;
   }
 
   panel_compression_changed_ = 0;
@@ -3223,7 +3232,8 @@ DisplayError HWDeviceDRM::SetupConcurrentWritebackModes(int32_t writeback_id) {
 void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info) {
   CwbConfig *cwb_config = hw_layer_info.hw_cwb_config;
   LayerBuffer *output_buffer = hw_layer_info.output_buffer;
-  registry_.MapOutputBufferToFbId(output_buffer);
+  bool fb_modified = false;
+  registry_.MapOutputBufferToFbId(output_buffer, &fb_modified);
   uint32_t &vitual_conn_id = cwb_config_.token.conn_id;
 
   // Set the topology for Concurrent Writeback: [CRTC_PRIMARY_DISPLAY - CONNECTOR_VIRTUAL_DISPLAY].

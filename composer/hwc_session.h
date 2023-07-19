@@ -610,6 +610,7 @@ class HWCSession : public HWCUEvent,
                                   uint32_t bit_mask_layer_type);
   bool TeardownPluggableDisplays();
   int DisconnectPluggableDisplays(DisplayMapInfo &map_info);
+  void RemoveDisconnectedPluggableDisplays();
 
   CoreInterface *core_intf_ = nullptr;
   HWCDisplay *hwc_display_[HWCCallbacks::kNumDisplays] = {nullptr};

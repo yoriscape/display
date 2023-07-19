@@ -1209,7 +1209,9 @@ HWC3::Error HWCSession::SetPowerMode(Display display, int32_t int_mode) {
   int support = 0;
   auto status = GetDozeSupport(display, &support);
   if (status != HWC3::Error::None) {
-    DLOGE("Failed to get doze support Error = %d", status);
+    if (is_builtin) {
+      DLOGE("Failed to get doze support Error = %d", status);
+    }
     return status;
   }
 
@@ -1275,7 +1277,7 @@ HWC3::Error HWCSession::GetDozeSupport(Display display, int32_t *out_support) {
 
   if (display >= HWCCallbacks::kNumDisplays || (hwc_display_[display] == nullptr)) {
     // display may come as -1  from VTS test case
-    DLOGE("Invalid Display %d ", UINT32(display));
+    DLOGW("Invalid Display %d ", UINT32(display));
     return HWC3::Error::BadDisplay;
   }
 
@@ -3373,9 +3375,24 @@ void HWCSession::DestroyNonPluggableDisplayLocked(DisplayMapInfo *map_info) {
   map_info->Reset();
 }
 
+void HWCSession::RemoveDisconnectedPluggableDisplays() {
+  SCOPE_LOCK(pluggable_handler_lock_);
+
+  HWDisplaysInfo hw_displays_info = {};
+  DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
+  if (error != kErrorNone) {
+    return;
+  }
+
+  HandleDisconnectedDisplays(&hw_displays_info);
+}
+
 void HWCSession::PerformDisplayPowerReset() {
+  RemoveDisconnectedPluggableDisplays();
+
   // Wait until all commands are flushed.
   std::lock_guard<std::mutex> lock(command_seq_mutex_);
+
   // Acquire lock on all displays.
   for (Display display = HWC_DISPLAY_PRIMARY; display < HWCCallbacks::kNumDisplays; display++) {
     locker_[display].Lock();
@@ -3394,6 +3411,7 @@ void HWCSession::PerformDisplayPowerReset() {
       }
     }
   }
+
   for (Display display = HWC_DISPLAY_PRIMARY; display < HWCCallbacks::kNumDisplays; display++) {
     if (hwc_display_[display] != NULL) {
       PowerMode mode = last_power_mode[display];
@@ -4189,6 +4207,11 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
     target_display = GetActiveBuiltinDisplay();
   }
 
+  HWC3::Error error = TeardownConcurrentWriteback(target_display);
+  if (error != HWC3::Error::None) {
+    return -ENODEV;
+  }
+
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
@@ -4245,11 +4268,6 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
-  }
-
-  HWC3::Error error = TeardownConcurrentWriteback(target_display);
-  if (error != HWC3::Error::None) {
-    return -ENODEV;
   }
 
   {
@@ -4476,15 +4494,22 @@ HWC3::Error HWCSession::TeardownConcurrentWriteback(Display display) {
   }
 
   for (int id = 0; id < HWCCallbacks::kNumRealDisplays; id++) {
-    if (!hwc_display_[id]) {
-      continue;
+    HWCDisplay *disp = nullptr;
+    {
+      SCOPE_LOCK(locker_[id]);
+      if (!hwc_display_[id]) {
+        continue;
+      }
+
+      int32_t display_type = 0;
+      hwc_display_[id]->GetDisplayType(&display_type);
+      if (display_type == INT32(DisplayBasicType::kPhysical)) {
+        disp = hwc_display_[id];
+      }
     }
 
-    int32_t display_type = 0;
-    SCOPE_LOCK(locker_[id]);
-    hwc_display_[id]->GetDisplayType(&display_type);
-    if (display_type == INT32(DisplayBasicType::kPhysical)) {
-      hwc_display_[id]->TeardownConcurrentWriteback();
+    if (disp) {
+      disp->TeardownConcurrentWriteback();
     }
   }
 
