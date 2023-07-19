@@ -2004,8 +2004,8 @@ std::string DisplayBuiltIn::Dump() {
     }
   }
 
-  os << comp_manager_->Dump();
   os << newline << "\n";
+  os << comp_manager_->Dump(display_comp_ctx_);
 
   return os.str();
 }
