@@ -1362,6 +1362,11 @@ HWC3::Error HWCDisplay::SetFrameDumpConfig(uint32_t count, uint32_t bit_mask_lay
   bool dump_output_to_file = bit_mask_layer_type & (1 << OUTPUT_LAYER_DUMP);
   DLOGI("Requested o/p dump enable = %d", dump_output_to_file);
 
+  if (secure_event_ != kSecureEventMax) {
+    DLOGW("Frame dump is not supported as TUI transition is in progress.");
+    return HWC3::Error::None;
+  }
+
   if (!count) {
     DLOGW("No frame will dump as requested output frame count = 0.");
     return HWC3::Error::None;
@@ -3188,6 +3193,31 @@ int HWCDisplay::GetCwbBufferResolution(CwbConfig *cwb_config, uint32_t *x_pixels
   return 0;
 }
 
+void HWCDisplay::ReleaseFrameDumpResources() {
+  std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
+  if (output_buffer_info_.alloc_buffer_info.fd < 0 && !output_buffer_base_ && !dump_frame_count_) {
+    return;
+  }
+
+  if (output_buffer_base_ &&
+      munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
+    DLOGW("unmap failed with err %d", errno);
+  }
+
+  if (output_buffer_info_.alloc_buffer_info.fd > 0 && buffer_allocator_ &&
+      buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
+    DLOGW("FreeBuffer failed");
+  }
+
+  output_buffer_info_ = {};
+  output_buffer_cwb_config_ = {};
+  output_buffer_base_ = nullptr;
+  dump_frame_count_ = 0;
+  dump_frame_index_ = 0;
+  dump_output_to_file_ = false;
+  DLOGI("Output Frame dumping buffer is freed for display %d-%d!", sdm_id_, type_);
+}
+
 DisplayError HWCDisplay::TeardownConcurrentWriteback() {
   if (!display_intf_->HandleCwbTeardown()) {
     return kErrorNotSupported;
@@ -3200,24 +3230,9 @@ DisplayError HWCDisplay::TeardownConcurrentWriteback() {
   }
 
   if (!pending_cwb_request) {
-    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
-    dump_frame_count_ = 0;
-    dump_frame_index_ = 0;
-    dump_output_to_file_ = false;
-    if (output_buffer_base_ != nullptr) {
-      if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
-        DLOGW("unmap failed with err %d", errno);
-      }
-    }
-
-    if (buffer_allocator_ && buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
-      DLOGW("FreeBuffer failed");
-    }
-    output_buffer_info_ = {};
-    output_buffer_base_ = nullptr;
     frame_capture_buffer_queued_ = false;
     frame_capture_status_ = 0;
-    DLOGI("Output Frame dumping buffer is freed!");
+    ReleaseFrameDumpResources();
   }
 
   return kErrorNone;
@@ -3623,23 +3638,7 @@ void HWCDisplay::HandleFrameDump() {
   }
 
   if (stop_frame_dump) {
-    std::unique_lock<std::mutex> lock(frame_dump_config_lock_);
-    dump_output_to_file_ = false;
-    // Unmap and Free buffer
-    if (munmap(output_buffer_base_, output_buffer_info_.alloc_buffer_info.size) != 0) {
-      DLOGE("unmap failed with err %d", errno);
-    }
-
-    if (buffer_allocator_->FreeBuffer(&output_buffer_info_) != 0) {
-      DLOGE("FreeBuffer failed");
-    }
-
-    output_buffer_info_ = {};
-    output_buffer_base_ = nullptr;
-    output_buffer_cwb_config_ = {};
-    dump_frame_count_ = 0;
-    dump_frame_index_ = 0;
-    DLOGI("Output Frame dumping buffer is freed!");
+    ReleaseFrameDumpResources();
   }
 }
 
