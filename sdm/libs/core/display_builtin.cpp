@@ -2777,7 +2777,11 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
 
   error = DisplayBase::HandleSecureEvent(secure_event, needs_refresh);
   if (error) {
-    DLOGE("Failed to handle secure event %d", secure_event);
+    if (error == kErrorPermission) {
+      DLOGW("Failed to handle secure event %d", secure_event);
+    } else {
+      DLOGE("Failed to handle secure event %d", secure_event);
+    }
     return error;
   }
 

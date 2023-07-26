@@ -3115,6 +3115,7 @@ DisplayError HWCDisplay::ValidateTUITransition(SecureEvent secure_event) {
 DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs_refresh,
                                            bool update_event_only) {
   if (secure_event == secure_event_) {
+    DLOGW("Same requested secure_event=%d", secure_event);
     return kErrorNone;
   }
 
@@ -3134,7 +3135,11 @@ DisplayError HWCDisplay::HandleSecureEvent(SecureEvent secure_event, bool *needs
 
   err = display_intf_->HandleSecureEvent(secure_event, needs_refresh);
   if (err != kErrorNone) {
-    DLOGE("Handle secure event failed");
+    if (err == kErrorPermission) {
+      DLOGW("Handle secure event failed");
+    } else {
+      DLOGE("Handle secure event failed");
+    }
     return err;
   }
 
