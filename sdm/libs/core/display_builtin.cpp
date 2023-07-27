@@ -620,7 +620,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   }
 #ifndef TRUSTED_VM
   demura_layer_.input_buffer.size = buffer->alloc_buffer_info.size;
-  demura_layer_.input_buffer.buffer_id = buffer->alloc_buffer_info.id;
+  demura_layer_.input_buffer.buffer_id = reinterpret_cast<uint64_t>(buffer->private_data);
+  demura_layer_.input_buffer.handle_id = buffer->alloc_buffer_info.id;
   demura_layer_.input_buffer.format = buffer->alloc_buffer_info.format;
   demura_layer_.input_buffer.width = buffer->alloc_buffer_info.aligned_width;
   demura_layer_.input_buffer.unaligned_width = buffer->alloc_buffer_info.aligned_width;
