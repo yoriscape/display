@@ -594,6 +594,7 @@ class HWCSession : public HWCUEvent,
   android::status_t TUITransitionPrepare(int disp_id);
   android::status_t TUITransitionStart(int disp_id);
   android::status_t TUITransitionEnd(int disp_id);
+  android::status_t TUITransitionEndLocked(int disp_id);
   android::status_t TUITransitionUnPrepare(int disp_id);
   void PerformIdleStatusCallback(Display display);
   DispType GetDisplayConfigDisplayType(int qdutils_disp_type);

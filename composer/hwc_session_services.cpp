@@ -728,11 +728,10 @@ int HWCSession::NotifyResolutionChange(int32_t disp_id, Attributes &attr) {
 int HWCSession::NotifyTUIEventDone(int disp_id, TUIEventType event_type) {
   int ret = 0;
   {
-    std::chrono::milliseconds span(2000);
     std::lock_guard<std::mutex> guard(tui_handler_lock_);
-    ret = (tui_event_handler_future_.wait_for(span) == std::future_status::timeout)
-              ? -ETIMEDOUT
-              : tui_event_handler_future_.get();
+    if (tui_event_handler_future_.valid()) {
+      ret = tui_event_handler_future_.get();
+    }
   }
   std::lock_guard<decltype(callbacks_lock_)> lock_guard(callbacks_lock_);
   AIDLDisplayType disp_type = MapDisplayId(disp_id);

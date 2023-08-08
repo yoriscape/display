@@ -3953,7 +3953,7 @@ DisplayError DisplayBase::HandleSecureEvent(SecureEvent secure_event, bool *need
 
 DisplayError DisplayBase::GetOutputBufferAcquireFence(shared_ptr<Fence> *out_fence) {
   ClientLock lock(disp_mutex_);
-  LayerBuffer *out_buffer = disp_layer_stack_->info.output_buffer;
+  std::shared_ptr<LayerBuffer> out_buffer = disp_layer_stack_->info.output_buffer;
   if (out_buffer == nullptr) {
     return kErrorNotSupported;
   }
@@ -4138,6 +4138,19 @@ DisplayError DisplayBase::SetHWDetailedEnhancerConfig(void *params) {
         }
       }
 
+      switch (de_tuning_cfg_data->params.content_type) {
+        case kDeContentTypeVideo:
+          de_data.content_type = kContentTypeVideo;
+          break;
+        case kDeContentTypeGraphics:
+          de_data.content_type = kContentTypeGraphics;
+          break;
+        case kDeContentTypeUnknown:
+        default:
+          de_data.content_type = kContentTypeUnknown;
+          break;
+      }
+
       if (de_tuning_cfg_data->params.flags & kDeTuningFlagDeBlend) {
         de_data.override_flags |= kOverrideDEBlend;
         de_data.de_blend = de_tuning_cfg_data->params.de_blend;
@@ -4284,7 +4297,7 @@ void DisplayBase::PrepareForAsyncTransition() {
 
 std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
   int idle_time_ms = disp_layer_stack_->info.set_idle_time_ms;
-  std::chrono::system_clock::time_point timeout_time;
+  std::chrono::milliseconds timeout_duration;
 
   DLOGV_IF(kTagDisplay, "Off: %d, time: %d, timeout:%d, panel: %s", state_ == kStateOff,
            idle_time_ms, handle_idle_timeout_, hw_panel_info_.mode == kModeVideo ? "video" : "cmd");
@@ -4292,12 +4305,13 @@ std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
   // Indefinite wait if state is off or idle timeout has triggered
   if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_ ||
       hw_panel_info_.mode != kModeVideo || pending_commit_) {
-    timeout_time = std::chrono::system_clock::from_time_t(INT_MAX);
+    timeout_duration = std::chrono::milliseconds(INT_MAX);
   } else {
-    std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
-    timeout_time = current_time + std::chrono::milliseconds(idle_time_ms);
+    timeout_duration = std::chrono::milliseconds(idle_time_ms);
   }
-  return timeout_time;
+
+  std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
+  return current_time + timeout_duration;
 }
 
 DisplayError DisplayBase::ConfigureCwbForIdleFallback(LayerStack *layer_stack) {

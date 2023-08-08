@@ -947,9 +947,13 @@ bool CompManager::IsSafeMode() {
   return safe_mode_;
 }
 
-std::string CompManager::Dump() {
+std::string CompManager::Dump(Handle display_ctx) {
   std::lock_guard<std::recursive_mutex> obj(comp_mgr_mutex_);
-  return resource_intf_->Dump();
+
+  DisplayCompositionContext *display_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+
+  return resource_intf_->Dump(display_comp_ctx->display_resource_ctx);
 }
 
 DppsControlInterface* CompManager::GetDppsControlIntf() {

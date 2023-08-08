@@ -620,7 +620,8 @@ DisplayError DisplayBuiltIn::SetupDemuraLayer() {
   }
 #ifndef TRUSTED_VM
   demura_layer_.input_buffer.size = buffer->alloc_buffer_info.size;
-  demura_layer_.input_buffer.buffer_id = buffer->alloc_buffer_info.id;
+  demura_layer_.input_buffer.buffer_id = reinterpret_cast<uint64_t>(buffer->private_data);
+  demura_layer_.input_buffer.handle_id = buffer->alloc_buffer_info.id;
   demura_layer_.input_buffer.format = buffer->alloc_buffer_info.format;
   demura_layer_.input_buffer.width = buffer->alloc_buffer_info.aligned_width;
   demura_layer_.input_buffer.unaligned_width = buffer->alloc_buffer_info.aligned_width;
@@ -2004,8 +2005,8 @@ std::string DisplayBuiltIn::Dump() {
     }
   }
 
-  os << comp_manager_->Dump();
   os << newline << "\n";
+  os << comp_manager_->Dump(display_comp_ctx_);
 
   return os.str();
 }
@@ -2615,10 +2616,10 @@ DisplayError DisplayBuiltIn::GetConfig(DisplayConfigFixedInfo *fixed_info) {
   // Checking library support for HDR10+
   comp_manager_->GetHDRCapability(&hdr_plus_supported, &dolby_vision_supported);
 
-  fixed_info->hdr_supported = hw_resource_info.has_hdr;
+  fixed_info->hdr_supported = hw_resource_info.has_hdr && hw_panel_info_.hdr_enabled;
   // Built-in displays always support HDR10+ when the target supports HDR
-  fixed_info->hdr_plus_supported = hw_resource_info.has_hdr && hdr_plus_supported;
-  fixed_info->dolby_vision_supported = hw_resource_info.has_hdr && dolby_vision_supported;
+  fixed_info->hdr_plus_supported = fixed_info->hdr_supported && hdr_plus_supported;
+  fixed_info->dolby_vision_supported = fixed_info->hdr_supported && dolby_vision_supported;
   // Populate luminance values only if hdr will be supported on that display
   fixed_info->max_luminance = fixed_info->hdr_supported ? hw_panel_info_.peak_luminance: 0;
   fixed_info->average_luminance = fixed_info->hdr_supported ? hw_panel_info_.average_luminance : 0;
@@ -2655,10 +2656,12 @@ void DisplayBuiltIn::SendDisplayConfigs() {
     if (error != kErrorNone) {
       return;
     }
-    disp_configs->h_total = display_attributes_.h_total;
-    disp_configs->v_total = display_attributes_.v_total;
-    disp_configs->fps = display_attributes_.fps;
-    disp_configs->smart_panel = display_attributes_.smart_panel;
+    HWDisplayAttributes display_attributes = {};
+    hw_intf_->GetDisplayAttributes(active_index, &display_attributes);
+    disp_configs->h_total = display_attributes.h_total;
+    disp_configs->v_total = display_attributes.v_total;
+    disp_configs->fps = display_attributes.fps;
+    disp_configs->smart_panel = display_attributes.smart_panel;
     disp_configs->is_primary = IsPrimaryDisplayLocked();
     if ((ret = ipc_intf_->SetParameter(kIpcParamDisplayConfigs, in))) {
       DLOGW("Failed to send display config, error = %d", ret);

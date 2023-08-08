@@ -80,6 +80,7 @@ namespace sdm {
 using std::string;
 using std::pair;
 using std::vector;
+// clang-format off
 
 const int kMaxSDELayers = 16;   // Maximum number of layers that can be handled by MDP5 hardware
                                 // in a given layer stack.
@@ -974,7 +975,8 @@ struct HWLayersInfo {
   shared_ptr<Fence> retire_fence = nullptr;  // Retire fence for current draw cycle.
   LayerStackFlags flags;               //!< Flags associated with this layer set.
   PrimariesTransfer blend_cs = {};     //!< o/p - Blending color space of the frame, updated by SDM
-  LayerBuffer *output_buffer = NULL;   //!< Pointer to the buffer where composed buffer would be
+  std::shared_ptr<LayerBuffer> output_buffer = nullptr;
+                                       //!< Pointer to the buffer where composed buffer would be
                                        //!< rendered for virtual displays.
                                        //!< NOTE: This field applies to a virtual display only.
   uint32_t output_fb_id = 0;           //!< FB ID of the output buffer of virtual display
@@ -1094,6 +1096,7 @@ enum CwbClient {
   kCwbClientMax,
 };
 
+// clang-format on
 }  // namespace sdm
 
 #endif  // __HW_INFO_TYPES_H__

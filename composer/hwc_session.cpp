@@ -4131,6 +4131,9 @@ int HWCSession::WaitForVmRelease(Display display, int timeout_ms) {
   int re_try = kVmReleaseRetry;
   int ret = 0;
   do {
+    if (hwc_display_[display]->GetCurrentPowerMode() == PowerMode::OFF) {
+      return -ENODEV;
+    }
     ret = vm_release_locker_[display].WaitFinite(timeout_ms + kVmReleaseTimeoutMs);
     if (!ret) {
       break;
@@ -4304,6 +4307,11 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
 
     DLOGI("Waiting for device assign");
     int ret = WaitForVmRelease(target_display, timeout_ms);
+    if (ret == -ENODEV) {
+      DLOGW("Unwind TUI");
+      TUITransitionEndLocked(target_display);
+      return ret;
+    }
     if (ret != 0) {
       DLOGE("Device assign failed with error %d", ret);
       return -EINVAL;
@@ -4324,10 +4332,15 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
 
   return 0;
 }
+
 android::status_t HWCSession::TUITransitionEnd(int disp_id) {
   // Hold this lock so that any deferred hotplug events will not be handled during the commit
   // and will be handled at the end of TUITransitionPrepare.
   SCOPE_LOCK(pluggable_handler_lock_);
+  return TUITransitionEndLocked(disp_id);
+}
+
+android::status_t HWCSession::TUITransitionEndLocked(int disp_id) {
   Display target_display = GetDisplayIndex(disp_id);
   bool needs_refresh = false;
   if (target_display == -1) {
@@ -4354,6 +4367,7 @@ android::status_t HWCSession::TUITransitionEnd(int disp_id) {
     }
   }
 
+  //Add check for internal state for bailing out (needs_refresh to false)
   if (needs_refresh) {
     DLOGI("Waiting for device unassign");
     int ret = WaitForCommitDoneAsync(target_display, kClientTrustedUI);
