@@ -897,6 +897,18 @@ ScopedAStatus DisplayConfigAIDL::unRegisterCallback(int64_t client_handle) {
   return ret == 0 ? ScopedAStatus::ok() : ScopedAStatus::fromExceptionCode(EX_TRANSACTION_FAILED);
 }
 
+ScopedAStatus DisplayConfigAIDL::getDisplayPortId(int32_t disp_id, int32_t *port_id) {
+  int ret = -1;
+
+  if (!port_id) {
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+
+  ret = hwc_session_->GetDisplayPortId(disp_id, port_id);
+
+  return ret == 0 ? ScopedAStatus::ok() : ScopedAStatus::fromExceptionCode(EX_TRANSACTION_FAILED);
+}
+
 }  // namespace config
 }  // namespace display
 }  // namespace hardware
