@@ -4210,11 +4210,6 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
     target_display = GetActiveBuiltinDisplay();
   }
 
-  HWC3::Error error = TeardownConcurrentWriteback(target_display);
-  if (error != HWC3::Error::None) {
-    return -ENODEV;
-  }
-
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
@@ -4271,6 +4266,11 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
+  }
+
+  HWC3::Error error = TeardownConcurrentWriteback(target_display);
+  if (error != HWC3::Error::None) {
+    return -ENODEV;
   }
 
   {

@@ -231,6 +231,7 @@ class HWCDisplay : public DisplayEventHandler {
   virtual CWBReleaseFenceError GetReadbackBufferFenceForClient(CWBClient client,
                                                                shared_ptr<Fence> *release_fence);
   virtual HWC3::Error GetReadbackBufferFence(shared_ptr<Fence> *release_fence);
+  virtual void ReleaseFrameDumpResources();
   virtual DisplayError TeardownConcurrentWriteback();
   // Captures frame output in the buffer specified by output_buffer_info. The API is
   // non-blocking and the client is expected to check operation status later on.
