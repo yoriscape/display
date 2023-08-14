@@ -3221,9 +3221,12 @@ void HWDeviceDRM::ConfigureConcurrentWriteback(const HWLayersInfo &hw_layer_info
   bool fb_modified = false;
   registry_.MapOutputBufferToFbId(output_buffer, &fb_modified);
   uint32_t &vitual_conn_id = cwb_config_.token.conn_id;
+  sde_drm::DRMWBUsageType cwb_usage = sde_drm::DRMWBUsageType::WB_USAGE_CWB;
 
   // Set the topology for Concurrent Writeback: [CRTC_PRIMARY_DISPLAY - CONNECTOR_VIRTUAL_DISPLAY].
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, vitual_conn_id, token_.crtc_id);
+  // Set WB usage type as CWB
+  drm_atomic_intf_->Perform(DRMOps::CONNECTOR_WB_USAGE_TYPE, vitual_conn_id, cwb_usage);
 
   // Set CRTC Capture Mode
   DRMCWbCaptureMode capture_mode = DRMCWbCaptureMode::MIXER_OUT;
