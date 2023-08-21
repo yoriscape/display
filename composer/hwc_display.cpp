@@ -488,7 +488,7 @@ int HWCDisplay::Init() {
 
   error = core_intf_->CreateDisplay(sdm_id_, this, &display_intf_);
   if (error != kErrorNone) {
-    if (kErrorResources == error) {
+    if (kErrorResources == error || kErrorCriticalResource == error) {
       return -ENODEV;
     }
 
