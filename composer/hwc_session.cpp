@@ -4016,7 +4016,7 @@ HWC3::Error HWCSession::WaitForResources(bool wait_for_resources, Display active
         std::unique_lock<std::mutex> caller_lock(hotplug_mutex_);
         resource_ready_ = false;
 
-        static constexpr uint32_t min_vsync_period_ms = 500;
+        static constexpr uint32_t min_vsync_period_ms = 5000;
         auto timeout =
             std::chrono::system_clock::now() + std::chrono::milliseconds(min_vsync_period_ms);
 
