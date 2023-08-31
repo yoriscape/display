@@ -1903,8 +1903,7 @@ HWC3::Error HWCDisplay::PostCommitLayerStack(shared_ptr<Fence> *out_retire_fence
     display_paused_ = true;
     display_pause_pending_ = false;
   }
-  if (secure_event_ == kTUITransitionEnd || secure_event_ == kSecureDisplayEnd ||
-      secure_event_ == kTUITransitionUnPrepare) {
+  if (secure_event_ == kSecureDisplayEnd || secure_event_ == kTUITransitionUnPrepare) {
     secure_event_ = kSecureEventMax;
   }
 
@@ -3177,6 +3176,7 @@ DisplayError HWCDisplay::PostHandleSecureEvent(SecureEvent secure_event) {
   DisplayError err = display_intf_->PostHandleSecureEvent(secure_event);
   if (err == kErrorNone) {
     if (secure_event == kTUITransitionEnd || secure_event == kTUITransitionUnPrepare) {
+      secure_event_ = kSecureEventMax;
       return kErrorNone;
     }
     DLOGV("Set secure_event to %d", secure_event);

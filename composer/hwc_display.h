@@ -438,6 +438,7 @@ class HWCDisplay : public DisplayEventHandler {
   virtual void Abort();
   virtual void MarkClientActive(bool is_client_up);
   virtual void SetExpectedPresentTime(uint64_t time) { expected_present_time_ = time; }
+  HWC3::Error GetCachedActiveConfig(Config *config);
 
  protected:
   static uint32_t throttling_refresh_rate_;
@@ -488,7 +489,6 @@ class HWCDisplay : public DisplayEventHandler {
   bool AllowSeamless(Config request_config);
   void SetVsyncsApplyRateChange(uint32_t vsyncs) { vsyncs_to_apply_rate_change_ = vsyncs; }
   HWC3::Error SubmitDisplayConfig(Config config);
-  HWC3::Error GetCachedActiveConfig(Config *config);
   void SetActiveConfigIndex(int active_config_index);
   HWC3::Error PostPrepareLayerStack(uint32_t *out_num_types, uint32_t *out_num_requests);
   HWC3::Error HandlePrepareError(DisplayError error);

@@ -129,6 +129,7 @@ class HWCSession : public HWCUEvent,
   enum HotPlugEvent {
     kHotPlugNone,
     kHotPlugEvent,
+    kHotPlugProcessing,
   };
 
   enum ClientCommitDone {
