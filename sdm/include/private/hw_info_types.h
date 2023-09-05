@@ -931,6 +931,10 @@ enum SelfRefreshState {
   kSelfRefreshDisableReadAlloc,     // Indicates to disable self refresh
 };
 
+struct SprOverfetchLines {
+  uint32_t top = 0;  // Over fetch lines for SPR pu on Top
+};
+
 struct HWLayersInfo {
   uint32_t app_layer_count = 0;      // Total number of app layers. Must not be 0.
   int32_t gpu_target_index = -1;     // GPU target layer index. -1 if not present.
@@ -952,6 +956,7 @@ struct HWLayersInfo {
                                 //    -1 indicates no change in idle time since last set value.
   std::vector<LayerRect> left_frame_roi = {};   // Left ROI.
   std::vector<LayerRect> right_frame_roi = {};  // Right ROI.
+  SprOverfetchLines spr_overfetch_lines = {};
   LayerRect partial_fb_roi = {};   // Damaged area in framebuffer.
   bool roi_split = false;          // Indicates separated left and right ROI
   bool async_cursor_updates = false;  // Cursor layer allowed to have async updates

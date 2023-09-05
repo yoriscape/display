@@ -259,6 +259,12 @@ DisplayError DisplayBuiltIn::PrePrepare(LayerStack *layer_stack) {
     return error;
   }
 
+  error = HandleSPR();
+  if (error != kErrorNone) {
+    return error;
+  }
+  disp_layer_stack_->info.spr_enable = spr_enable_;
+
   AppendCWBLayer(layer_stack);
   // Do not skip validate if needs update PP features.
   if (color_mgr_) {
@@ -320,11 +326,6 @@ DisplayError DisplayBuiltIn::Prepare(LayerStack *layer_stack) {
 
   if (error == kErrorNeedsLutRegen && (ForceToneMapUpdate(layer_stack) == kErrorNone)) {
     return kErrorNone;
-  }
-
-  error = HandleSPR();
-  if (error != kErrorNone) {
-    return error;
   }
 
   error = DisplayBase::Prepare(layer_stack);
@@ -506,6 +507,7 @@ DisplayError DisplayBuiltIn::SetupSPR() {
     if (color_mgr_) {
       color_mgr_->ColorMgrSetSprIntf(spr_);
     }
+    comp_manager_->SetSprIntf(display_comp_ctx_, spr_);
   }
 
   return kErrorNone;
@@ -987,11 +989,14 @@ DisplayError DisplayBuiltIn::CommitLocked(LayerStack *layer_stack) {
 
 DisplayError DisplayBuiltIn::PostCommit(HWLayersInfo *hw_layers_info) {
   DisplayBase::PostCommit(hw_layers_info);
-
-  if (pending_brightness_) {
-    Fence::Wait(retire_fence_);
-    SetPanelBrightness(cached_brightness_);
-    pending_brightness_ = false;
+  // Mutex scope
+  {
+    lock_guard<recursive_mutex> obj(brightness_lock_);
+    if (pending_brightness_) {
+      Fence::Wait(retire_fence_);
+      SetPanelBrightness(cached_brightness_);
+      pending_brightness_ = false;
+    }
   }
 
   if (commit_event_enabled_) {
@@ -2777,7 +2782,11 @@ DisplayError DisplayBuiltIn::HandleSecureEvent(SecureEvent secure_event, bool *n
 
   error = DisplayBase::HandleSecureEvent(secure_event, needs_refresh);
   if (error) {
-    DLOGE("Failed to handle secure event %d", secure_event);
+    if (error == kErrorPermission) {
+      DLOGW("Failed to handle secure event %d", secure_event);
+    } else {
+      DLOGE("Failed to handle secure event %d", secure_event);
+    }
     return error;
   }
 

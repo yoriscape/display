@@ -223,6 +223,9 @@ DisplayError Strategy::Reconfigure(const HWPanelInfo &hw_panel_info,
   extension_intf_->CreatePartialUpdate(display_id_, display_type_, hw_resource_info_, hw_panel_info,
                                        mixer_attributes, display_attributes, fb_config,
                                        &partial_update_intf_);
+  if (partial_update_intf_ && spr_intf_) {
+    partial_update_intf_->SetSprIntf(spr_intf_);
+  }
 
   error = strategy_intf_->Reconfigure(hw_panel_info, hw_resource_info_, display_attributes,
                                       mixer_attributes, fb_config);
@@ -296,6 +299,18 @@ void Strategy::SetDisplayLayerStack(DispLayerStack *disp_layer_stack) {
   if (strategy_intf_) {
     strategy_intf_->SetDisplayLayerStack(disp_layer_stack);
   }
+}
+
+DisplayError Strategy::SetSprIntf(std::shared_ptr<SPRIntf> intf) {
+  if (partial_update_intf_) {
+    DisplayError ret = partial_update_intf_->SetSprIntf(intf);
+    if (ret != kErrorNone) {
+      return ret;
+    }
+    spr_intf_ = intf;
+    return ret;
+  }
+  return kErrorNotSupported;
 }
 
 }  // namespace sdm

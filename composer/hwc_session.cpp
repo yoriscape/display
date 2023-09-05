@@ -307,7 +307,6 @@ int HWCSession::Init() {
 
   is_composer_up_ = true;
 
-  StartServices();
   PostInit();
   GetVirtualDisplayList();
   HpdInit();
@@ -3009,7 +3008,7 @@ int HWCSession::HandlePluggableDisplays(bool delay_hotplug) {
   HWDisplaysInfo hw_displays_info = {};
   DisplayError error = core_intf_->GetDisplaysStatus(&hw_displays_info);
   if (error != kErrorNone) {
-    DLOGE("Failed to get connected display list. Error = %d", error);
+    DLOGW("Failed to get connected display list. Error = %d", error);
     return -EINVAL;
   }
 
@@ -4210,11 +4209,6 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
     target_display = GetActiveBuiltinDisplay();
   }
 
-  HWC3::Error error = TeardownConcurrentWriteback(target_display);
-  if (error != HWC3::Error::None) {
-    return -ENODEV;
-  }
-
   if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
     DLOGE("Display %" PRIu64 " not supported", target_display);
     return -ENOTSUP;
@@ -4264,13 +4258,10 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
 
   Display target_display = GetDisplayIndex(disp_id);
   bool needs_refresh = false;
-  if (target_display == -1) {
-    target_display = GetActiveBuiltinDisplay();
-  }
 
-  if (target_display != qdutils::DISPLAY_PRIMARY && target_display != qdutils::DISPLAY_BUILTIN_2) {
-    DLOGE("Display %" PRIu64 " not supported", target_display);
-    return -ENOTSUP;
+  HWC3::Error error = TeardownConcurrentWriteback(target_display);
+  if (error != HWC3::Error::None) {
+    return -ENODEV;
   }
 
   {
@@ -4285,9 +4276,14 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   int timeout_ms = -1;
   {
     SEQUENCE_WAIT_SCOPE_LOCK(locker_[target_display]);
+    DisplayError err = kErrorNone;
     if (hwc_display_[target_display]) {
-      if (hwc_display_[target_display]->HandleSecureEvent(kTUITransitionStart, &needs_refresh,
-                                                          false) != kErrorNone) {
+      if ((err = hwc_display_[target_display]->HandleSecureEvent(
+               kTUITransitionStart, &needs_refresh, false)) != kErrorNone) {
+        if (err == kErrorPermission) {
+          DLOGW("Bail from Start. Call unprepare");
+          goto end;
+        }
         return -EINVAL;
       }
       uint32_t config = 0;
@@ -4331,6 +4327,10 @@ android::status_t HWCSession::TUITransitionStart(int disp_id) {
   }
 
   return 0;
+
+end:
+  TUITransitionUnPrepare(disp_id);
+  return -EPERM;
 }
 
 android::status_t HWCSession::TUITransitionEnd(int disp_id) {

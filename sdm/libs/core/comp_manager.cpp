@@ -1047,4 +1047,10 @@ void CompManager::GetDSConfig(Handle display_ctx, DestScaleInfoMap *dest_scale_i
   }
 }
 
+DisplayError CompManager::SetSprIntf(Handle display_ctx, std::shared_ptr<SPRIntf> intf) {
+  DisplayCompositionContext *disp_comp_ctx =
+      reinterpret_cast<DisplayCompositionContext *>(display_ctx);
+  return disp_comp_ctx->strategy->SetSprIntf(intf);
+}
+
 }  // namespace sdm
