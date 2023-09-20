@@ -600,6 +600,12 @@ DisplayError HWDeviceDRM::Init() {
     DLOGI("force_tonemapping_ %d", force_tonemapping_);
   }
 
+  value = 0;
+  if (Debug::GetProperty(ASPECT_RATIO_THRESHOLD, &value) == kErrorNone) {
+    aspect_ratio_threshold_ = 1 + (FLOAT(value) / 100);
+    DLOGI("aspect_ratio_threshold_: %f", aspect_ratio_threshold_);
+  }
+
   return kErrorNone;
 }
 
@@ -2501,7 +2507,9 @@ DisplayError HWDeviceDRM::SetMixerAttributes(const HWMixerAttributes &mixer_attr
   float display_aspect_ratio =
       FLOAT(display_attributes_[index].x_pixels) / FLOAT(display_attributes_[index].y_pixels);
 
-  if (display_aspect_ratio != mixer_aspect_ratio) {
+  float display_to_mixer_aspect_ratio = std::max(display_aspect_ratio, mixer_aspect_ratio) /
+                                        std::min(display_aspect_ratio, mixer_aspect_ratio);
+  if (display_to_mixer_aspect_ratio > aspect_ratio_threshold_) {
     DLOGW("Aspect ratio mismatch! input: res %dx%d display: res %dx%d", mixer_attributes.width,
           mixer_attributes.height, display_attributes_[index].x_pixels,
           display_attributes_[index].y_pixels);
