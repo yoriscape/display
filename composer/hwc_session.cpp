@@ -243,7 +243,7 @@ int HWCSession::Init() {
 
   DLOGI("Getting IQService");
   android::sp<qService::IQService> iqservice = android::interface_cast<qService::IQService>(
-      android::defaultServiceManager()->getService(android::String16(qservice_name)));
+      android::defaultServiceManager()->checkService(android::String16(qservice_name)));
   DLOGI("Getting IQService...done!");
 
   if (iqservice.get()) {
@@ -4016,7 +4016,7 @@ HWC3::Error HWCSession::WaitForResources(bool wait_for_resources, Display active
         std::unique_lock<std::mutex> caller_lock(hotplug_mutex_);
         resource_ready_ = false;
 
-        static constexpr uint32_t min_vsync_period_ms = 500;
+        static constexpr uint32_t min_vsync_period_ms = 5000;
         auto timeout =
             std::chrono::system_clock::now() + std::chrono::milliseconds(min_vsync_period_ms);
 
@@ -4097,15 +4097,6 @@ int HWCSession::WaitForCommitDone(Display display, int client_id) {
     DLOGI("Acquired lock for client %d display %" PRIu64, client_id, display);
     callbacks_.Refresh(display);
     clients_waiting_for_commit_[display].set(client_id);
-    locker_[display].Wait();
-    if (commit_error_[display] != 0) {
-      DLOGE("Commit done failed with error %d for client %d display %" PRIu64,
-            commit_error_[display], client_id, display);
-      commit_error_[display] = 0;
-      return -EINVAL;
-    }
-    retire_fence = retire_fence_[display];
-    retire_fence_[display] = nullptr;
     if (hwc_display_[display]) {
       uint32_t config = 0;
       hwc_display_[display]->GetActiveDisplayConfig(&config);
@@ -4114,6 +4105,22 @@ int HWCSession::WaitForCommitDone(Display display, int client_id) {
       timeout_ms = kNumDrawCycles * (display_attributes.vsync_period_ns / kDenomNstoMs);
       DLOGI("timeout in ms %d", timeout_ms);
     }
+    int result = locker_[display].WaitFinite(timeout_ms);
+    if (result) {
+      if (hwc_display_[display]->GetCurrentPowerMode() == PowerMode::OFF) {
+        DLOGW("Display is powered off, bail");
+      }
+      DLOGW("Wait timed out, error=%d", result);
+      return result;
+    }
+    if (commit_error_[display] != 0) {
+      DLOGE("Commit done failed with error %d for client %d display %" PRIu64,
+            commit_error_[display], client_id, display);
+      commit_error_[display] = 0;
+      return -EINVAL;
+    }
+    retire_fence = retire_fence_[display];
+    retire_fence_[display] = nullptr;
   }
 
   int ret = Fence::Wait(retire_fence, timeout_ms + kCommitDoneTimeoutMs);
