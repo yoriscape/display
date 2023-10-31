@@ -1626,6 +1626,14 @@ void HWDeviceDRM::SetupAtomic(Fence::ScopedRef &scoped_ref, HWLayersInfo *hw_lay
           SetSsppTonemapFeatures(pipe_info);
         } else if (update_luts) {
           SetSsppTonemapFeatures(pipe_info);
+          if (hw_scale_) {
+            SDEScaler scaler_output = {};
+            hw_scale_->SetScaler(pipe_info->scale_data, &scaler_output);
+            if (hw_resource_.has_qseed3) {
+              drm_atomic_intf_->Perform(DRMOps::PLANE_SET_SCALER_CONFIG, pipe_id,
+                                        reinterpret_cast<uint64_t>(&scaler_output.scaler_v2));
+            }
+          }
         }
 
         drm_atomic_intf_->Perform(DRMOps::PLANE_SET_FB_ID, pipe_id, fb_id);
