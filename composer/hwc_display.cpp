@@ -665,9 +665,8 @@ HWC3::Error HWCDisplay::DestroyLayer(LayerId layer_id) {
 }
 
 static bool IsHDRLayerPresent(Layer *layer) {
-  if (layer->input_buffer.color_metadata.colorPrimaries == ColorPrimaries_BT2020 &&
-      (layer->input_buffer.color_metadata.transfer == Transfer_SMPTE_ST2084 ||
-       layer->input_buffer.color_metadata.transfer == Transfer_HLG)) {
+  if (layer->input_buffer.color_metadata.transfer == Transfer_SMPTE_ST2084 ||
+      layer->input_buffer.color_metadata.transfer == Transfer_HLG) {
     return true;
   } else if (IsExtendedRange(layer->input_buffer)) {
     // Treat input format FP16 with extended range as HDR layer
