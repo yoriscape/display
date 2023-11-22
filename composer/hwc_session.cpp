@@ -4252,10 +4252,6 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
     return -ENOTSUP;
   }
 
-  if (TeardownPluggableDisplays()) {
-    pending_hotplug_event_ = kHotPlugEvent;
-  }
-
   std::vector<DisplayMapInfo> map_info = {map_info_primary_};
   std::copy(map_info_builtin_.begin(), map_info_builtin_.end(), std::back_inserter(map_info));
   std::copy(map_info_virtual_.begin(), map_info_virtual_.end(), std::back_inserter(map_info));
@@ -4269,6 +4265,10 @@ android::status_t HWCSession::TUITransitionPrepare(int disp_id) {
         return -EINVAL;
       }
     }
+  }
+
+  if (TeardownPluggableDisplays()) {
+    pending_hotplug_event_ = kHotPlugEvent;
   }
 
   return 0;
