@@ -760,6 +760,8 @@ void HWCDisplay::BuildLayerStack() {
       // Dont honor HDR when its handling is disabled
       layer->input_buffer.flags.hdr = true;
       layer_stack_.flags.hdr_present = true;
+    } else {
+      layer->input_buffer.flags.hdr = false;
     }
 
     if (game_supported_ && (hwc_layer->GetType() == kLayerGame) && !hdr_layer) {
