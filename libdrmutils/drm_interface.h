@@ -620,6 +620,12 @@ enum struct DRMOps {
    *      uint32_t - BppMode24-1, BppMode30-2
    */
   CONNECTOR_SET_BPP_MODE,
+  /*
+   * Op: Sets Brightness on connector
+   * Arg: uint32_t - Connector ID
+   *      uint32_t - Brightness Level
+   */
+  CONNECTOR_SET_BRIGHTNESS,
 };
 
 enum struct DRMRotation {
