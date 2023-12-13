@@ -718,7 +718,7 @@ HWC3::Error HWCLayer::SetLayerType(LayerType type) {
       layer_type = kLayerBrowser;
       break;
     default:
-      DLOGW("Unsupported layer type %d", layer_type);
+      DLOGI_IF(kTagClient, "Unsupported layer type %d", layer_type);
       break;
   }
 
