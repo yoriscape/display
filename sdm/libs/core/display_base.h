@@ -418,6 +418,7 @@ class DisplayBase : public DisplayInterface, public CompManagerEventHandler {
   HWPowerState pending_power_state_ = kPowerStateNone;
   QSyncMode qsync_mode_ = kQSyncModeNone;
   bool needs_avr_update_ = false;
+  bool force_lm_to_fb_config_ = false;
 
   static Locker display_power_reset_lock_;
   static bool display_power_reset_pending_;
