@@ -161,8 +161,7 @@ bool GetRange(const int32_t &dataspace, ColorRange *color_range) {
 }
 
 bool IsHdr(const ColorPrimaries &color_primary, const GammaTransfer &gamma_transfer) {
-  return (color_primary == ColorPrimaries_BT2020) &&
-         ((gamma_transfer == Transfer_SMPTE_ST2084) || (gamma_transfer == Transfer_HLG));
+  return (gamma_transfer == Transfer_SMPTE_ST2084) || (gamma_transfer == Transfer_HLG);
 }
 
 bool IsBT2020(const ColorPrimaries &color_primary) {
