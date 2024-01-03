@@ -56,9 +56,11 @@ case "$target" in
         setprop vendor.display.timed_render_enable 1
         setprop vendor.gralloc.hw_supports_ubwcp 0
         ;;
-      614|632)
-        # SOC ID for Palawan is 614
-        # SOC ID for Lamma is 632
+      614|632|642|643)
+        # SOC ID for Cliffs is 614
+        # SOC ID for Cliffs7 is 632
+        # SOC ID for CliffsP is 642
+        # SOC ID for Cliffs7P is 643
         setprop vendor.display.enable_fb_scaling 0
         setprop vendor.gralloc.use_dma_buf_heaps 1
         setprop vendor.display.target.version 5
