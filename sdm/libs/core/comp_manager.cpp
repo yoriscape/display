@@ -751,8 +751,6 @@ void CompManager::HandleSecureEvent(Handle display_ctx, SecureEvent secure_event
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, true);
   }
   if (secure_event == kTUITransitionEnd) {
-    resource_intf_->Perform(ResourceInterface::kCmdResetLUT,
-                            display_comp_ctx->display_resource_ctx);
     resource_intf_->HandleTUITransition(display_comp_ctx->display_resource_ctx, false);
     safe_mode_ = false;
   }

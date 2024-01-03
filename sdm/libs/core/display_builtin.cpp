@@ -207,9 +207,17 @@ DisplayError DisplayBuiltIn::Init() {
   DebugHandler::Get()->GetProperty(DISABLE_CWB_IDLE_FALLBACK, &value);
   disable_cwb_idle_fallback_ = (value == 1);
 
+  value = 0;
+  DebugHandler::Get()->GetProperty(ENABLE_BRIGHTNESS_DRM_PROP, &value);
+  enable_brightness_drm_prop_ = (value == 1);
+
 #ifdef TRUSTED_VM
   disable_cwb_idle_fallback_ = 1;
 #endif
+
+  value = 0;
+  DebugHandler::Get()->GetProperty(FORCE_LM_TO_FB_CONFIG, &value);
+  force_lm_to_fb_config_ = (value == 1);
 
   NoiseInit();
   InitCWBBuffer();
@@ -1244,6 +1252,9 @@ DisplayError DisplayBuiltIn::SetPanelBrightness(float brightness) {
   }
 
   DisplayError err = hw_intf_->SetPanelBrightness(level);
+  if (enable_brightness_drm_prop_) {
+    event_handler_->Refresh();
+  }
   if (err == kErrorNone) {
     level_remainder_ = level_remainder;
     pending_brightness_ = false;

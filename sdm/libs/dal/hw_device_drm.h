@@ -100,6 +100,7 @@ struct SDECsc {
 
 struct HWCwbConfig {
   bool enabled = false;
+  bool dnsc_config = false;
   sde_drm::DRMDisplayToken token = {};  // display token to be used for virtual connector while CWB
 };
 
@@ -374,9 +375,16 @@ class HWDeviceDRM : public HWInterface {
   static std::mutex cwb_state_lock_;  // cwb state lock. Set before accesing or updating cwb_config_
   uint32_t transfer_time_updated_ = 0;
   bool force_tonemapping_ = false;
+  bool enable_brightness_drm_prop_ = false;
+  int cached_brightness_level_ = -1;
+  int current_brightness_ = -1;
 
  private:
   void GetCWBCapabilities();
+  void ConfigureDemuraDNSC(const HWLayersInfo &hw_layers_info);
+#ifdef FEATURE_DNSC_BLUR
+  struct sde_drm_dnsc_blur_cfg dnsc_cfg_ = {};
+#endif
 
   std::string interface_str_ = "DSI";
   bool resolution_switch_enabled_ = false;

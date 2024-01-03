@@ -337,6 +337,7 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   bool cwb_buffer_initialized_ = false;
   BufferInfo output_buffer_info_ = {};
   EventProxyInfo event_proxy_info_ = {};
+  bool enable_brightness_drm_prop_ = false;
 };
 
 }  // namespace sdm
