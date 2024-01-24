@@ -25,7 +25,7 @@
 /*
 * Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -4193,6 +4193,7 @@ DisplayError DisplayBase::SetHWDetailedEnhancerConfig(void *params) {
 }
 
 DisplayError DisplayBase::GetPanelBlMaxLvl(uint32_t *max_level) {
+  DTRACE_SCOPED();
   ClientLock lock(disp_mutex_);
 
   DisplayError err = hw_intf_->GetPanelBlMaxLvl(max_level);
@@ -4205,6 +4206,7 @@ DisplayError DisplayBase::GetPanelBlMaxLvl(uint32_t *max_level) {
 }
 
 DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
+  DTRACE_SCOPED();
   {
     ClientLock lock(disp_mutex_);
     DisplayError err = hw_intf_->SetPPConfig(payload, size);
@@ -4220,6 +4222,7 @@ DisplayError DisplayBase::SetPPConfig(void *payload, size_t size) {
 }
 
 DisplayError DisplayBase::SetDimmingEnable(int int_enabled) {
+  DTRACE_SCOPED();
   struct sde_drm::DRMPPFeatureInfo info = {};
   GenericPayload payload;
   uint64_t *bl_ctrl = nullptr;
@@ -4245,6 +4248,7 @@ DisplayError DisplayBase::SetDimmingEnable(int int_enabled) {
 }
 
 DisplayError DisplayBase::SetDimmingMinBl(int min_bl) {
+  DTRACE_SCOPED();
   struct sde_drm::DRMPPFeatureInfo info = {};
   GenericPayload payload;
   uint64_t *bl = nullptr;
@@ -4270,6 +4274,7 @@ DisplayError DisplayBase::SetDimmingMinBl(int min_bl) {
 
 /* this func is called by DC dimming feature only after PCC updates */
 void DisplayBase::ScreenRefresh() {
+  DTRACE_SCOPED();
   {
     ClientLock lock(disp_mutex_);
     /* do not skip validate */
@@ -4279,6 +4284,7 @@ void DisplayBase::ScreenRefresh() {
 }
 
 DisplayError DisplayBase::GetPanelFeatureInfo(PanelFeatureInfo *info) {
+  DTRACE_SCOPED();
   ClientLock lock(disp_mutex_);
   if (!info) {
     return kErrorParameters;
