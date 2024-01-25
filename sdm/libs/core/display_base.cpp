@@ -148,6 +148,7 @@ DisplayError DisplayBase::Init() {
   int drop_vsync = 0;
   int hw_recovery_threshold = 1;
   int32_t prop = 0;
+  uint32_t inactive_ms = 0;
   hw_intf_->GetActiveConfig(&active_index);
   hw_intf_->GetDisplayAttributes(active_index, &display_attributes_);
 
@@ -255,6 +256,8 @@ DisplayError DisplayBase::Init() {
   if (Debug::Get()->GetProperty(ALLOW_TONEMAP_NATIVE, &prop) == kErrorNone) {
     allow_tonemap_native_ = (prop == 1);
   }
+
+  Debug::GetIdleTimeoutMs(&idle_active_ms_, &inactive_ms);
 
   SetupPanelFeatureFactory();
 
@@ -815,6 +818,10 @@ DisplayError DisplayBase::PrePrepare(LayerStack *layer_stack) {
   error = comp_manager_->PrePrepare(display_comp_ctx_, disp_layer_stack_);
 
   ConfigureCwbParams(layer_stack);
+
+  if (disp_layer_stack_->info.notify_idle) {
+    event_handler_->HandleEvent(kPostIdleTimeout);
+  }
 
   return error;
 }
@@ -1444,7 +1451,13 @@ void DisplayBase::CommitThread() {
             hw_panel_info_.mode == kModeVideo ? "video" : "cmd", wait_duration);
 
       event_handler_->HandleEvent(kIdleTimeout);
-      IdleTimeout();
+      if (hw_panel_info_.mode == kModeCommand || idle_active_ms_ <= 0) {
+        //Notify Display Idle to AIDL clients
+        event_handler_->HandleEvent(kPostIdleTimeout);
+        idle_hint_set_ = true;
+      } else {
+        IdleTimeout();
+      }
       continue;
     }
 
@@ -1627,6 +1640,7 @@ void DisplayBase::CleanupOnError() {
 
 DisplayError DisplayBase::PostCommit(HWLayersInfo *hw_layers_info) {
   DTRACE_SCOPED();
+  idle_hint_set_ = false;
   // Store retire fence to track commit start.
   CacheRetireFence();
   if (secure_event_ == kSecureDisplayEnd || secure_event_ == kTUITransitionEnd ||
@@ -4310,15 +4324,21 @@ void DisplayBase::PrepareForAsyncTransition() {
 }
 
 std::chrono::system_clock::time_point DisplayBase::WaitUntil() {
-  int idle_time_ms = disp_layer_stack_->info.set_idle_time_ms;
+  int idle_time_ms;
+  if (hw_panel_info_.mode == kModeCommand || idle_active_ms_ <= 0) {
+    // Idle Timer is configured to notify display idle to AIDL clients
+    idle_time_ms = IDLE_TIMEOUT_DEFAULT_MS;
+  } else {
+    idle_time_ms = disp_layer_stack_->info.set_idle_time_ms;
+  }
   std::chrono::milliseconds timeout_duration;
 
   DLOGV_IF(kTagDisplay, "Off: %d, time: %d, timeout:%d, panel: %s", state_ == kStateOff,
            idle_time_ms, handle_idle_timeout_, hw_panel_info_.mode == kModeVideo ? "video" : "cmd");
 
   // Indefinite wait if state is off or idle timeout has triggered
-  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_ ||
-      hw_panel_info_.mode != kModeVideo || pending_commit_) {
+  if (state_ == kStateOff || idle_time_ms <= 0 || handle_idle_timeout_ || pending_commit_ ||
+      idle_hint_set_) {
     timeout_duration = std::chrono::milliseconds(INT_MAX);
   } else {
     timeout_duration = std::chrono::milliseconds(idle_time_ms);
