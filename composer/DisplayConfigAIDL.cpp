@@ -30,7 +30,7 @@
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -727,9 +727,9 @@ ScopedAStatus DisplayConfigAIDL::isRCSupported(int disp_id, bool *supported) {
 
 ScopedAStatus DisplayConfigAIDL::controlIdleStatusCallback(bool enable) {
   if (enable) {
-    hwc_session_->idle_callback_ = callback_;
+    hwc_session_->enable_aidl_idle_notification_ = true;
   } else {
-    hwc_session_->idle_callback_.reset();
+    hwc_session_->enable_aidl_idle_notification_ = false;
   }
 
   return ScopedAStatus::ok();
