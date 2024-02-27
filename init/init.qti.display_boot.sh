@@ -102,6 +102,7 @@ case "$target" in
         setprop vendor.display.disable_offline_rotator 0
         setprop vendor.display.enable_qsync_idle 1
         setprop vendor.display.disable_rotator_ubwc 1
+        setprop vendor.display.disable_get_screen_decorator_support 1
         ;;
     esac
     ;;
