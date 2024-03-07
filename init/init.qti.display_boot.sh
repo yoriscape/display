@@ -106,6 +106,30 @@ case "$target" in
         ;;
     esac
     ;;
+    "volcano")
+    case "$soc_hwid" in
+      636|640|641)
+        # SOC ID for Volcano is 636
+        # SOC ID for Volcano is 640
+        # SOC ID for Volcano APQ is 641
+        setprop vendor.display.enable_fb_scaling 0
+        setprop vendor.gralloc.use_dma_buf_heaps 1
+        setprop vendor.display.target.version 5
+        setprop vendor.display.enable_posted_start_dyn 2
+        setprop vendor.display.enable_allow_idle_fallback 1
+        setprop vendor.display.enable_perf_hint_large_comp_cycle 1
+        setprop vendor.display.enable_rotator_ui 1
+        setprop vendor.display.enable_spec_fence 1
+        setprop vendor.display.thermal.version 1
+        setprop vendor.display.enable_rc_support 1
+        setprop vendor.display.enable_latch_media_content 1
+        setprop vendor.display.enable_inline_writeback 1
+        setprop vendor.display.timed_render_enable 1
+        setprop vendor.gralloc.hw_supports_ubwcp 0
+        setprop vendor.display.enable_qsync_idle 1
+        ;;
+    esac
+    ;;
     "kalama")
     #SOC ID for Kalama is 519
     case "$soc_hwid" in
