@@ -4417,7 +4417,7 @@ android::status_t HWCSession::TUITransitionEndLocked(int disp_id) {
         DLOGE("Device unassign failed with error %d", ret);
       }
       TUITransitionUnPrepare(disp_id);
-      return -EINVAL;
+      return 0;
     }
   }
 
