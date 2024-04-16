@@ -1063,7 +1063,7 @@ DisplayError DisplayBuiltIn::PostCommit(HWLayersInfo *hw_layers_info) {
 void DisplayBuiltIn::HandleQsyncPostCommit() {
   if (qsync_mode_ == kQsyncModeOneShot) {
     // Reset qsync mode.
-    SetQSyncMode(kQSyncModeNone);
+    SetQSyncModeLocked(kQSyncModeNone);
   } else if (qsync_mode_ == kQsyncModeOneShotContinuous) {
     // No action needed.
   } else if (qsync_mode_ == kQSyncModeContinuous) {
@@ -2124,24 +2124,8 @@ DisplayError DisplayBuiltIn::GetQSyncMode(QSyncMode *qsync_mode) {
 
 DisplayError DisplayBuiltIn::SetQSyncMode(QSyncMode qsync_mode) {
   ClientLock lock(disp_mutex_);
-
-  if (!hw_panel_info_.qsync_support || first_cycle_) {
-    DLOGW("Failed: qsync_support: %d first_cycle %d", hw_panel_info_.qsync_support,
-          first_cycle_);
-    return kErrorNotSupported;
-  }
-
-  // force clear qsync mode if set by idle timeout.
-  if (qsync_mode_ ==  active_qsync_mode_ && qsync_mode_ == qsync_mode) {
-    DLOGW("Qsync mode already set as requested mode: qsync_mode_=%d", qsync_mode_);
-    return kErrorNone;
-  }
-
-  qsync_mode_ = qsync_mode;
-  needs_avr_update_ = true;
-  validated_ = false;
-  event_handler_->Refresh();
-  return kErrorNone;
+  DisplayError err = SetQSyncModeLocked(qsync_mode);
+  return err;
 }
 
 DisplayError DisplayBuiltIn::ControlIdlePowerCollapse(bool enable, bool synchronous) {
@@ -3295,6 +3279,25 @@ DisplayError DisplayBuiltIn::SetDemuraConfig(int demura_idx) {
 DisplayError DisplayBuiltIn::PanelOprInfo(const std::string &client_name, bool enable,
                                           SdmDisplayCbInterface<PanelOprPayload> *cb_intf) {
   return event_proxy_info_.PanelOprInfo(client_name, enable, cb_intf);
+}
+
+DisplayError DisplayBuiltIn::SetQSyncModeLocked(QSyncMode qsync_mode) {
+  if (!hw_panel_info_.qsync_support || first_cycle_) {
+    DLOGW("Failed: qsync_support: %d first_cycle %d", hw_panel_info_.qsync_support, first_cycle_);
+    return kErrorNotSupported;
+  }
+
+  // force clear qsync mode if set by idle timeout.
+  if (qsync_mode_ == active_qsync_mode_ && qsync_mode_ == qsync_mode) {
+    DLOGW("Qsync mode already set as requested mode: qsync_mode_=%d", qsync_mode_);
+    return kErrorNone;
+  }
+
+  qsync_mode_ = qsync_mode;
+  needs_avr_update_ = true;
+  validated_ = false;
+  event_handler_->Refresh();
+  return kErrorNone;
 }
 
 DisplayError EventProxyInfo::Init(const std::string &panel_name, DisplayInterface *intf,
