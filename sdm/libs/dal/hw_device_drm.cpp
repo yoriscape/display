@@ -2011,7 +2011,9 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   SetupAtomic(scoped_ref, hw_layers_info, false /* validate */,
                                    &release_fence_fd, &retire_fence_fd);
 
-  bool sync_commit = synchronous_commit_ || first_cycle_;
+  bool sync_commit = synchronous_commit_ || first_cycle_ ||
+                     (update_mode_ && !seamless_mode_switch_ && hw_panel_info_.is_pluggable);
+
   uint64_t elapse_timestamp = hw_layers_info->elapse_timestamp;
 
   struct timespec t = {0, 0};
