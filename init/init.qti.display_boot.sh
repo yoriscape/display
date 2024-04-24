@@ -132,6 +132,7 @@ case "$target" in
         setprop vendor.display.timed_render_enable 1
         setprop vendor.gralloc.hw_supports_ubwcp 0
         setprop vendor.display.enable_qsync_idle 1
+        setprop vendor.display.disable_get_screen_decorator_support 1
         ;;
     esac
     ;;
