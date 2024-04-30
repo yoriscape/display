@@ -1260,6 +1260,12 @@ DisplayError HWDeviceDRM::PowerOff(bool teardown, SyncPoints *sync_points) {
   if (!IsSeamlessTransition()) {
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode);
   }
+  if (enable_brightness_drm_prop_ && cached_brightness_level_ != -1) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BRIGHTNESS, token_.conn_id,
+                              cached_brightness_level_);
+    current_brightness_ = cached_brightness_level_;
+    cached_brightness_level_ = -1;
+  }
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id, DRMPowerMode::OFF);
   drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 0);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_GET_RETIRE_FENCE, token_.conn_id, &retire_fence_fd);
@@ -1357,6 +1363,12 @@ DisplayError HWDeviceDRM::DozeSuspend(const HWQosData &qos_data, SyncPoints *syn
     drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_CRTC, token_.conn_id, token_.crtc_id);
     drmModeModeInfo current_mode = connector_info_.modes[current_mode_index_].mode;
     drm_atomic_intf_->Perform(DRMOps::CRTC_SET_MODE, token_.crtc_id, &current_mode);
+  }
+  if (enable_brightness_drm_prop_ && cached_brightness_level_ != -1) {
+    drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_BRIGHTNESS, token_.conn_id,
+                              cached_brightness_level_);
+    current_brightness_ = cached_brightness_level_;
+    cached_brightness_level_ = -1;
   }
   drm_atomic_intf_->Perform(DRMOps::CRTC_SET_ACTIVE, token_.crtc_id, 1);
   drm_atomic_intf_->Perform(DRMOps::CONNECTOR_SET_POWER_MODE, token_.conn_id,
@@ -1999,7 +2011,9 @@ DisplayError HWDeviceDRM::AtomicCommit(HWLayersInfo *hw_layers_info) {
   SetupAtomic(scoped_ref, hw_layers_info, false /* validate */,
                                    &release_fence_fd, &retire_fence_fd);
 
-  bool sync_commit = synchronous_commit_ || first_cycle_;
+  bool sync_commit = synchronous_commit_ || first_cycle_ ||
+                     (update_mode_ && !seamless_mode_switch_ && hw_panel_info_.is_pluggable);
+
   uint64_t elapse_timestamp = hw_layers_info->elapse_timestamp;
 
   struct timespec t = {0, 0};

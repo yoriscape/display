@@ -103,14 +103,19 @@ case "$target" in
         setprop vendor.display.enable_qsync_idle 1
         setprop vendor.display.disable_rotator_ubwc 1
         setprop vendor.display.disable_get_screen_decorator_support 1
+        setprop vendor.gralloc.use_uncached_heap 1
+        setprop vendor.display.allow_tonemap_native 1
+        setprop vendor.gralloc.allow_camera_preview_write 1
         ;;
     esac
     ;;
     "volcano")
     case "$soc_hwid" in
-      636|640|641)
+      636|640|641|657|658)
         # SOC ID for Volcano is 636
         # SOC ID for Volcano is 640
+        # SOC ID for Volcano IOT is 657
+        # SOC ID for Volcano IOT is 658
         # SOC ID for Volcano APQ is 641
         setprop vendor.display.enable_fb_scaling 0
         setprop vendor.gralloc.use_dma_buf_heaps 1
@@ -127,6 +132,7 @@ case "$target" in
         setprop vendor.display.timed_render_enable 1
         setprop vendor.gralloc.hw_supports_ubwcp 0
         setprop vendor.display.enable_qsync_idle 1
+        setprop vendor.display.disable_get_screen_decorator_support 1
         ;;
     esac
     ;;
