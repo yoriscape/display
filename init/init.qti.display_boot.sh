@@ -95,7 +95,7 @@ case "$target" in
         setprop vendor.display.enable_rc_support 1
         setprop vendor.display.enable_latch_media_content 1
         setprop vendor.display.enable_inline_writeback 0
-        setprop vendor.display.timed_render_enable 1
+        setprop vendor.display.timed_render_enable 0
         setprop vendor.gralloc.hw_supports_ubwcp 0
         setprop vendor.display.disable_gpu_color_convert 0
         setprop vendor.display.disable_cwb_idle_fallback 1
