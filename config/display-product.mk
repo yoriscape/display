@@ -146,7 +146,7 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += ro.surface_flinger.max_virtual_display_dim
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += ro.surface_flinger.clear_slots_with_set_layer_buffer=false
 
 #BG blur support
-ifeq ($(TARGET_BOARD_PLATFORM),pitti)
+ifeq ($(filter $(TARGET_BOARD_PLATFORM), pitti volcano), $(TARGET_BOARD_PLATFORM))
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += ro.surface_flinger.supports_background_blur=0
 else
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += ro.surface_flinger.supports_background_blur=1
